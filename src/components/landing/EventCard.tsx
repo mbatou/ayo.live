@@ -1,9 +1,8 @@
 import { LiveBadge } from "@/components/ui/LiveBadge";
 import { GroupBadge } from "@/components/ui/GroupBadge";
-import { GENRE_TINTS } from "@/lib/placeholder-data";
-import type { Event } from "@/types";
+import { GENRE_TINTS, type PlaceholderEvent } from "@/lib/placeholder-data";
 
-type Props = { event: Event };
+type Props = { event: PlaceholderEvent };
 
 export function EventCard({ event }: Props) {
   const tint = GENRE_TINTS[event.genre] ?? GENRE_TINTS.default;

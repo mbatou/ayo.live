@@ -1,6 +1,22 @@
-import type { Event } from "@/types";
+// Landing-page-only event shape. Real DB events use `Event` from `@/types`.
+export type PlaceholderEvent = {
+  id: string;
+  slug: string;
+  title: string;
+  artist: string;
+  artistInitials: string;
+  location: string;
+  genre: string;
+  date: string;
+  time: string;
+  price: number;
+  ticketsSold: number;
+  ticketsTotal: number;
+  isLive: boolean;
+  isGroup: boolean;
+};
 
-export const PLACEHOLDER_EVENTS: Event[] = [
+export const PLACEHOLDER_EVENTS: PlaceholderEvent[] = [
   {
     id: "1",
     slug: "eko-after-dark",
