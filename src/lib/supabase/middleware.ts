@@ -26,6 +26,17 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Already-authed users hitting the sign-in page should be sent on.
+  if (user && request.nextUrl.pathname === "/auth/signin") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/dashboard";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
   return supabaseResponse;
 }
