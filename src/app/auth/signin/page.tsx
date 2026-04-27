@@ -14,9 +14,13 @@ export default function SignInPage() {
     setLoading(true);
     setError(null);
     const supabase = createClient();
+    const next = new URLSearchParams(window.location.search).get("next");
+    const callbackUrl = next
+      ? `${location.origin}/auth/callback?next=${encodeURIComponent(next)}`
+      : `${location.origin}/auth/callback`;
     const { error: signInError } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${location.origin}/auth/callback` },
+      options: { emailRedirectTo: callbackUrl },
     });
     setLoading(false);
     if (signInError) {

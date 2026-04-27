@@ -39,7 +39,7 @@ export function NavBar() {
 
         <div className="hidden md:flex items-center gap-3">
           <a
-            href="#signin"
+            href="/auth/signin"
             className="text-sm text-text-secondary hover:text-text-primary px-3 py-2 transition-colors"
           >
             Sign in
@@ -75,7 +75,7 @@ export function NavBar() {
           ))}
           <div className="flex gap-3 pt-2 border-t border-border-subtle">
             <a
-              href="#signin"
+              href="/auth/signin"
               className="flex-1 text-center text-sm text-text-secondary border border-border-subtle rounded-btn px-3 py-2"
             >
               Sign in
