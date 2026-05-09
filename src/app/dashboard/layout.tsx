@@ -12,7 +12,7 @@ export default async function DashboardLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/auth/signin?next=/dashboard");
+  if (!user) redirect("/auth/signin?role=artist&next=/dashboard");
 
   const service = createServiceClient();
   const { data: profile } = await service
