@@ -4,6 +4,7 @@ import { useState, useEffect, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type Role = "artist" | "fan";
+type Mode = "signin" | "signup";
 
 function safeNext(value: string | null): string | null {
   if (!value) return null;
@@ -12,33 +13,42 @@ function safeNext(value: string | null): string | null {
   return value;
 }
 
+function destinationFor(role: string | null, next: string | null): string {
+  if (next) return next;
+  if (role === "artist") return "/dashboard";
+  return "/";
+}
+
 export default function SignInPage() {
+  const [mode, setMode] = useState<Mode>("signup");
   const [role, setRole] = useState<Role | null>(null);
   const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
+  const [password, setPassword] = useState("");
+  const [emailSent, setEmailSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Pre-select the role from `?role=` so deep links from
-  // "Become an artist" / "Get ticket" pin the right card.
+  // Pre-select role + mode from query so deep-link CTAs work.
   useEffect(() => {
-    const param = new URLSearchParams(window.location.search).get("role");
-    if (param === "artist" || param === "fan") {
-      setRole(param);
-    }
+    const params = new URLSearchParams(window.location.search);
+    const roleParam = params.get("role");
+    if (roleParam === "artist" || roleParam === "fan") setRole(roleParam);
+    const modeParam = params.get("mode");
+    if (modeParam === "signin" || modeParam === "signup") setMode(modeParam);
   }, []);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!role) {
+    setError(null);
+
+    if (mode === "signup" && !role) {
       setError("Pick a role first.");
       return;
     }
-    setLoading(true);
-    setError(null);
 
-    // TODO(remove after auth confirmed working in prod): diagnostic for the
-    // "Failed to fetch" hotfix. Confirms env vars are reaching the browser.
+    setLoading(true);
+
+    // TODO(remove after auth confirmed working in prod): env-var diagnostic.
     if (typeof window !== "undefined") {
       console.log(
         "[Ayo] Supabase URL:",
@@ -56,27 +66,110 @@ export default function SignInPage() {
         new URLSearchParams(window.location.search).get("next"),
       );
 
-      const callbackParams = new URLSearchParams();
-      callbackParams.set("role", role);
-      if (next) callbackParams.set("next", next);
-      const callbackUrl = `${window.location.origin}/auth/callback?${callbackParams.toString()}`;
+      if (mode === "signup") {
+        const signupRole: Role = role!; // checked above
+        const callbackParams = new URLSearchParams();
+        callbackParams.set("role", signupRole);
+        if (next) callbackParams.set("next", next);
+        const callbackUrl = `${window.location.origin}/auth/callback?${callbackParams.toString()}`;
 
-      const { error: signInError } = await supabase.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: callbackUrl },
-      });
+        const { data, error: signUpErr } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { role: signupRole },
+            emailRedirectTo: callbackUrl,
+          },
+        });
 
-      if (signInError) {
-        setError(signInError.message);
+        if (signUpErr) {
+          setError(signUpErr.message);
+          return;
+        }
+
+        // No session => Supabase has email confirmation enabled. Show a
+        // "check your email" panel; the link routes through /auth/callback
+        // which will upsert the role and route from there.
+        if (!data.session || !data.user) {
+          setEmailSent(true);
+          return;
+        }
+
+        // Auto-confirmed: write the profile ourselves and route. The
+        // INSERT/UPDATE policies from migration 0009 cover this.
+        const { error: upsertErr } = await supabase
+          .from("profiles")
+          .upsert(
+            { id: data.user.id, role: signupRole, display_name: email },
+            { onConflict: "id" },
+          );
+        if (upsertErr) {
+          console.error("[Ayo] profile upsert failed:", upsertErr);
+          setError(
+            "Account created but profile setup failed. Try signing in.",
+          );
+          return;
+        }
+        // Full reload so server components pick up the new auth cookie.
+        window.location.href = destinationFor(signupRole, next);
         return;
       }
-      setSent(true);
+
+      // Sign in
+      const { error: signInErr } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInErr) {
+        setError(signInErr.message);
+        return;
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setError("Signed in but no session — try again.");
+        return;
+      }
+
+      // If the user picked a role on the sign-in form, treat that as a
+      // role-switch request and upsert it. Lets the existing test account
+      // (stuck on role='fan' from the old auto-profile trigger) flip to
+      // artist by signing in via /auth/signin?role=artist.
+      let finalRole: string | null = null;
+      const pickedRole: Role | null = role;
+      if (pickedRole) {
+        const { data: upserted, error: upsertErr } = await supabase
+          .from("profiles")
+          .upsert(
+            { id: user.id, role: pickedRole, display_name: email },
+            { onConflict: "id" },
+          )
+          .select("role")
+          .single();
+        if (upsertErr) {
+          console.error("[Ayo] role update failed:", upsertErr);
+        } else {
+          finalRole = upserted?.role ?? null;
+        }
+      } else {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+        finalRole = profile?.role ?? null;
+      }
+
+      window.location.href = destinationFor(finalRole, next);
     } catch (err) {
-      console.error("[Ayo] sign-in failed:", err);
+      console.error("[Ayo] auth failed:", err);
       setError(
         err instanceof Error
           ? err.message
-          : "Could not reach the sign-in service. Check your connection and try again.",
+          : "Could not reach the auth service. Check your connection and try again.",
       );
     } finally {
       setLoading(false);
@@ -93,29 +186,70 @@ export default function SignInPage() {
           <p className="text-text-secondary mt-2 text-sm">Joy, Live.</p>
         </div>
 
-        {sent ? (
+        {emailSent ? (
           <div className="bg-surface rounded-card p-6 text-center">
-            <p className="text-white font-medium mb-1">Check your email ✓</p>
+            <p className="text-white font-medium mb-1">
+              Check your email ✓
+            </p>
             <p className="text-text-secondary text-sm">
-              We sent a magic link to{" "}
+              We sent a confirmation link to{" "}
               <span className="text-white">{email}</span>.
             </p>
             <p className="text-text-muted text-xs mt-3">
-              You&apos;ll come back as{" "}
+              Click it to finish creating your{" "}
               <span className="text-text-secondary">
-                {role === "artist" ? "an artist" : "a fan"}
-              </span>
-              .
+                {role === "artist" ? "artist" : "fan"}
+              </span>{" "}
+              account.
             </p>
+            <button
+              type="button"
+              onClick={() => {
+                setEmailSent(false);
+                setMode("signin");
+              }}
+              className="mt-4 text-text-muted text-xs underline hover:text-text-secondary"
+            >
+              Already confirmed? Sign in instead
+            </button>
           </div>
         ) : (
           <form
             onSubmit={handleSubmit}
             className="bg-surface rounded-card p-6 space-y-5"
           >
+            <div className="flex bg-stage-black border border-border-subtle rounded-btn p-1">
+              <button
+                type="button"
+                onClick={() => setMode("signin")}
+                className={
+                  "flex-1 text-sm font-medium py-1.5 rounded transition-colors " +
+                  (mode === "signin"
+                    ? "bg-ayo-gold text-stage-black"
+                    : "text-text-secondary hover:text-white")
+                }
+              >
+                Sign in
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("signup")}
+                className={
+                  "flex-1 text-sm font-medium py-1.5 rounded transition-colors " +
+                  (mode === "signup"
+                    ? "bg-ayo-gold text-stage-black"
+                    : "text-text-secondary hover:text-white")
+                }
+              >
+                Sign up
+              </button>
+            </div>
+
             <div>
               <p className="text-sm text-text-secondary mb-2">
-                I&apos;m signing in as
+                {mode === "signup"
+                  ? "I'm signing up as"
+                  : "Continue as (optional)"}
               </p>
               <div className="space-y-2">
                 <button
@@ -166,21 +300,51 @@ export default function SignInPage() {
                   </div>
                 </button>
               </div>
+              {mode === "signin" && role && (
+                <button
+                  type="button"
+                  onClick={() => setRole(null)}
+                  className="mt-2 text-text-muted text-xs underline hover:text-text-secondary"
+                >
+                  Clear role (sign in without changing it)
+                </button>
+              )}
             </div>
 
-            <div>
-              <label className="block text-sm text-text-secondary mb-1.5">
-                Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-                autoComplete="email"
-                className="w-full bg-stage-black border border-border-subtle rounded-btn px-3 py-2.5 text-white placeholder:text-text-muted focus:outline-none focus:border-ayo-gold text-sm"
-              />
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm text-text-secondary mb-1.5">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  required
+                  autoComplete="email"
+                  className="w-full bg-stage-black border border-border-subtle rounded-btn px-3 py-2.5 text-white placeholder:text-text-muted focus:outline-none focus:border-ayo-gold text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-text-secondary mb-1.5">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={
+                    mode === "signup" ? "At least 6 characters" : "Your password"
+                  }
+                  required
+                  minLength={6}
+                  autoComplete={
+                    mode === "signup" ? "new-password" : "current-password"
+                  }
+                  className="w-full bg-stage-black border border-border-subtle rounded-btn px-3 py-2.5 text-white placeholder:text-text-muted focus:outline-none focus:border-ayo-gold text-sm"
+                />
+              </div>
             </div>
 
             {error && (
@@ -191,14 +355,17 @@ export default function SignInPage() {
 
             <button
               type="submit"
-              disabled={loading || !role}
+              disabled={loading || (mode === "signup" && !role)}
               className="w-full bg-ayo-gold hover:bg-ayo-gold-hover text-stage-black font-semibold rounded-btn py-2.5 text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {loading ? "Sending…" : "Send magic link"}
+              {loading
+                ? mode === "signup"
+                  ? "Creating account…"
+                  : "Signing in…"
+                : mode === "signup"
+                  ? "Create account"
+                  : "Sign in"}
             </button>
-            <p className="text-center text-text-muted text-xs">
-              No password needed. We email you a sign-in link.
-            </p>
           </form>
         )}
       </div>
