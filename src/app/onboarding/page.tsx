@@ -58,7 +58,7 @@ export default function OnboardingPage() {
       const next = safeNext(
         new URLSearchParams(window.location.search).get("next"),
       );
-      const target = next ?? (selected === "artist" ? "/dashboard" : "/");
+      const target = next ?? (selected === "artist" ? "/dashboard" : "/fan");
       router.push(target);
     } catch (err) {
       console.error("[onboarding] failed:", err);

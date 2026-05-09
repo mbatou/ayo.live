@@ -16,6 +16,7 @@ function safeNext(value: string | null): string | null {
 function destinationFor(role: string | null, next: string | null): string {
   if (next) return next;
   if (role === "artist") return "/dashboard";
+  if (role === "fan") return "/fan";
   return "/";
 }
 
