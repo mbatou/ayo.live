@@ -11,6 +11,7 @@ Run these in order in the Supabase SQL editor for project `ayo-production`.
 | `0005_sessions.sql` | Sprint 2 / AYO-012 | Creates `sessions` table + RLS. Server-side only. Depends on `tickets`. |
 | `0006_payouts.sql` | Sprint 2 / AYO-012 | Creates `payout_status` enum, `payouts` table + RLS. Depends on `profiles` and `events`. |
 | `0007_updated_at_triggers.sql` | Sprint 2 / AYO-012 | Adds `set_updated_at()` triggers on `profiles` and `events`. Run last. |
+| `0008_fix_handle_new_user.sql` | Sprint 3 hotfix | Rewrites `handle_new_user()` with an explicit `search_path = public` and an exception guard around the role cast. Fixes the "Database error saving new user" signup failure. Idempotent — safe to re-run. |
 
 ## Auth settings to apply manually
 
