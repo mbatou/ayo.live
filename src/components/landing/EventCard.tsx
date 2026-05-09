@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { LiveBadge } from "@/components/ui/LiveBadge";
 import { GroupBadge } from "@/components/ui/GroupBadge";
 import { GENRE_TINTS, type PlaceholderEvent } from "@/lib/placeholder-data";
@@ -10,11 +11,16 @@ export function EventCard({ event }: Props) {
     100,
     Math.round((event.ticketsSold / event.ticketsTotal) * 100),
   );
+  const href = event.dbEventId ? `/events/${event.dbEventId}` : null;
 
-  return (
-    <a
-      href={`#${event.slug}`}
-      className="group block bg-surface rounded-card overflow-hidden border border-border-subtle hover:border-text-muted hover:scale-[1.02] transition-all duration-200"
+  const inner = (
+    <div
+      className={
+        "block bg-surface rounded-card overflow-hidden border border-border-subtle transition-all duration-200 group " +
+        (href
+          ? "hover:border-text-muted hover:scale-[1.02] cursor-pointer"
+          : "opacity-95")
+      }
     >
       <div
         className="relative aspect-[16/9] flex items-center justify-center"
@@ -57,16 +63,22 @@ export function EventCard({ event }: Props) {
 
         <div className="space-y-1.5 pt-1">
           <div className="h-1 w-full bg-stage-black rounded-full overflow-hidden">
-            <div
-              className="h-full bg-ayo-gold"
-              style={{ width: `${pct}%` }}
-            />
+            <div className="h-full bg-ayo-gold" style={{ width: `${pct}%` }} />
           </div>
           <p className="text-[11px] tracking-[0.14em] text-text-muted uppercase">
             {event.ticketsSold.toLocaleString()} going · {pct}%
           </p>
         </div>
+
+        {!href && (
+          <span className="inline-block text-[10px] text-text-muted border border-border-subtle rounded px-2 py-0.5 mt-1">
+            Launching soon
+          </span>
+        )}
       </div>
-    </a>
+    </div>
   );
+
+  if (!href) return inner;
+  return <Link href={href}>{inner}</Link>;
 }

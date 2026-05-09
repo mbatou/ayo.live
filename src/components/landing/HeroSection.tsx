@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { LiveBadge } from "@/components/ui/LiveBadge";
 import { ProtectedBadge } from "@/components/ui/ProtectedBadge";
 import { FEATURED_EVENT, GENRE_TINTS } from "@/lib/placeholder-data";
@@ -5,9 +6,10 @@ import { FEATURED_EVENT, GENRE_TINTS } from "@/lib/placeholder-data";
 export function HeroSection() {
   const event = FEATURED_EVENT;
   const tint = GENRE_TINTS[event.genre] ?? GENRE_TINTS.default;
+  const ticketHref = event.dbEventId ? `/events/${event.dbEventId}` : "/#shows";
 
   return (
-    <section className="border-b border-border-subtle">
+    <section id="live" className="border-b border-border-subtle">
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-16 md:py-24 grid grid-cols-1 lg:grid-cols-5 gap-12 items-center">
         <div className="lg:col-span-3 space-y-6">
           <p className="text-xs tracking-[0.2em] text-text-muted uppercase">
@@ -24,18 +26,18 @@ export function HeroSection() {
             groups. One ticket, one device — every show is yours.
           </p>
           <div className="flex flex-wrap gap-3 pt-2">
-            <a
-              href="#shows"
+            <Link
+              href="/#shows"
               className="inline-flex items-center justify-center text-sm font-semibold text-stage-black bg-ayo-gold hover:bg-ayo-gold-hover px-5 py-3 rounded-btn transition-colors"
             >
               Browse shows
-            </a>
-            <a
-              href="#how"
+            </Link>
+            <Link
+              href="/auth/signin?role=artist"
               className="inline-flex items-center justify-center text-sm font-semibold text-text-primary border border-border-subtle hover:border-text-secondary px-5 py-3 rounded-btn transition-colors"
             >
-              How it works
-            </a>
+              For artists →
+            </Link>
           </div>
         </div>
 
@@ -70,12 +72,12 @@ export function HeroSection() {
                   {event.artist} · 7 performers
                 </p>
               </div>
-              <a
-                href={`#${event.slug}`}
+              <Link
+                href={ticketHref}
                 className="block w-full text-center text-sm font-semibold text-stage-black bg-ayo-gold hover:bg-ayo-gold-hover py-3 rounded-btn transition-colors"
               >
                 Get ticket — ${event.price}
-              </a>
+              </Link>
               <div className="flex justify-center">
                 <ProtectedBadge />
               </div>

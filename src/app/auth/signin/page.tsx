@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, useEffect, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type Role = "artist" | "fan";
 type Mode = "signin" | "signup";
+
+const ROLE_INTENT_KEY = "ayo_intended_role";
 
 function safeNext(value: string | null): string | null {
   if (!value) return null;
@@ -21,6 +24,7 @@ function destinationFor(role: string | null, next: string | null): string {
 }
 
 export default function SignInPage() {
+  const router = useRouter();
   const [mode, setMode] = useState<Mode>("signup");
   const [role, setRole] = useState<Role | null>(null);
   const [email, setEmail] = useState("");
@@ -29,14 +33,44 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Pre-select role + mode from query so deep-link CTAs work.
+  // Pre-select role + mode from query so deep-link CTAs work, and
+  // remember the role intent across the auth bounce in case the user
+  // ends up on /onboarding (no profile yet, role param dropped, etc).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const roleParam = params.get("role");
-    if (roleParam === "artist" || roleParam === "fan") setRole(roleParam);
+    if (roleParam === "artist" || roleParam === "fan") {
+      setRole(roleParam);
+      try {
+        localStorage.setItem(ROLE_INTENT_KEY, roleParam);
+      } catch {
+        // localStorage can throw (private mode, quota); not critical.
+      }
+    }
     const modeParam = params.get("mode");
     if (modeParam === "signin" || modeParam === "signup") setMode(modeParam);
   }, []);
+
+  // Already-signed-in users shouldn't see the form. Send them home.
+  useEffect(() => {
+    const supabase = createClient();
+    let cancelled = false;
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (cancelled || !data.user) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", data.user.id)
+        .single();
+      if (cancelled) return;
+      if (profile?.role === "artist") router.replace("/dashboard");
+      else if (profile?.role === "fan") router.replace("/fan");
+      else router.replace("/onboarding");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
