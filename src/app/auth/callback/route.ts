@@ -92,6 +92,9 @@ export async function GET(request: Request) {
   if (role === "artist") {
     return NextResponse.redirect(`${origin}/dashboard`);
   }
+  if (role === "fan") {
+    return NextResponse.redirect(`${origin}/fan`);
+  }
 
   return NextResponse.redirect(`${origin}/`);
 }
