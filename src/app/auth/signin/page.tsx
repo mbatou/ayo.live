@@ -13,21 +13,47 @@ export default function SignInPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const supabase = createClient();
-    const next = new URLSearchParams(window.location.search).get("next");
-    const callbackUrl = next
-      ? `${location.origin}/auth/callback?next=${encodeURIComponent(next)}`
-      : `${location.origin}/auth/callback`;
-    const { error: signInError } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: callbackUrl },
-    });
-    setLoading(false);
-    if (signInError) {
-      setError(signInError.message);
-      return;
+
+    // TODO(remove after auth confirmed working in prod): diagnostic for the
+    // "Failed to fetch" hotfix. Confirms env vars are reaching the browser.
+    if (typeof window !== "undefined") {
+      console.log(
+        "[Ayo] Supabase URL:",
+        process.env.NEXT_PUBLIC_SUPABASE_URL ? "SET" : "MISSING",
+      );
+      console.log(
+        "[Ayo] Supabase Anon Key:",
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "SET" : "MISSING",
+      );
     }
-    setSent(true);
+
+    try {
+      const supabase = createClient();
+      const next = new URLSearchParams(window.location.search).get("next");
+      const callbackUrl = next
+        ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`
+        : `${window.location.origin}/auth/callback`;
+
+      const { error: signInError } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: callbackUrl },
+      });
+
+      if (signInError) {
+        setError(signInError.message);
+        return;
+      }
+      setSent(true);
+    } catch (err) {
+      console.error("[Ayo] sign-in failed:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Could not reach the sign-in service. Check your connection and try again.",
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -42,7 +68,7 @@ export default function SignInPage() {
 
         {sent ? (
           <div className="bg-surface rounded-card p-6 text-center">
-            <p className="text-white font-medium mb-1">Check your email</p>
+            <p className="text-white font-medium mb-1">Check your email ✓</p>
             <p className="text-text-secondary text-sm">
               We sent a magic link to{" "}
               <span className="text-white">{email}</span>
@@ -67,6 +93,13 @@ export default function SignInPage() {
                 className="w-full bg-stage-black border border-border-subtle rounded-btn px-3 py-2.5 text-white placeholder:text-text-muted focus:outline-none focus:border-ayo-gold text-sm"
               />
             </div>
+
+            {error && (
+              <p className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-btn px-3 py-2">
+                {error}
+              </p>
+            )}
+
             <button
               type="submit"
               disabled={loading}
@@ -74,9 +107,6 @@ export default function SignInPage() {
             >
               {loading ? "Sending…" : "Send magic link"}
             </button>
-            {error && (
-              <p className="text-live-red text-xs text-center">{error}</p>
-            )}
             <p className="text-center text-text-muted text-xs">
               No password needed. We email you a sign-in link.
             </p>
