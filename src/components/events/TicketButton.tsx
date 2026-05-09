@@ -21,7 +21,7 @@ export function TicketButton({ eventId, price }: Props) {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) {
-      router.push(`/auth/signin?next=/events/${eventId}`);
+      router.push(`/auth/signin?role=fan&next=/events/${eventId}`);
       return;
     }
 

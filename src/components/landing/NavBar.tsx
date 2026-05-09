@@ -45,7 +45,7 @@ export function NavBar() {
             Sign in
           </a>
           <a
-            href="#artist-waitlist"
+            href="/auth/signin?role=artist"
             className="text-sm font-semibold text-stage-black bg-ayo-gold hover:bg-ayo-gold-hover px-4 py-2 rounded-btn transition-colors"
           >
             Become an artist
@@ -81,7 +81,7 @@ export function NavBar() {
               Sign in
             </a>
             <a
-              href="#artist-waitlist"
+              href="/auth/signin?role=artist"
               className="flex-1 text-center text-sm font-semibold text-stage-black bg-ayo-gold rounded-btn px-3 py-2"
             >
               Become an artist

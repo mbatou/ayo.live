@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
-// Only honour `next` if it's a same-origin relative path. Reject `//evil.com`,
-// fully-qualified URLs, and `javascript:` schemes.
+type Role = "artist" | "fan";
+
 function safeNext(value: string | null): string | null {
   if (!value) return null;
   if (!value.startsWith("/")) return null;
@@ -11,10 +11,16 @@ function safeNext(value: string | null): string | null {
   return value;
 }
 
+function parseRole(value: string | null): Role | null {
+  if (value === "artist" || value === "fan") return value;
+  return null;
+}
+
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const next = safeNext(searchParams.get("next"));
+  const pickedRole = parseRole(searchParams.get("role"));
 
   if (!code) {
     return NextResponse.redirect(`${origin}/auth/error`);
@@ -34,30 +40,56 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/auth/error`);
   }
 
-  // Service-role read so RLS changes can't ever lock us out of the routing
-  // decision. Public SELECT on profiles would also work today.
   const service = createServiceClient();
-  const { data: profile } = await service
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
 
-  // First-time user — pick a role before going anywhere else. Forward `next`
-  // so we can drop them on their original destination after onboarding.
-  if (!profile) {
+  // Sign-in carries the role the user just picked. Upsert it so:
+  //   - first-time users get a profile created without a separate
+  //     /onboarding hop
+  //   - existing users (including fans created by the old auto-profile
+  //     trigger) can switch role by signing in via ?role=artist|fan
+  // Magic links are bound to the recipient's email, so only the account
+  // owner can trigger this. /onboarding stays as a fallback for sessions
+  // that arrive without a role param.
+  let role: string | null = null;
+  if (pickedRole) {
+    const { data: upserted, error: upsertErr } = await service
+      .from("profiles")
+      .upsert(
+        {
+          id: user.id,
+          role: pickedRole,
+          display_name: user.email ?? null,
+        },
+        { onConflict: "id" },
+      )
+      .select("role")
+      .single();
+    if (upsertErr) {
+      console.error("[auth/callback] profile upsert error:", upsertErr);
+      return NextResponse.redirect(`${origin}/auth/error`);
+    }
+    role = upserted?.role ?? null;
+  } else {
+    const { data: existing } = await service
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    role = existing?.role ?? null;
+  }
+
+  if (!role) {
     const target = next
       ? `/onboarding?next=${encodeURIComponent(next)}`
       : "/onboarding";
     return NextResponse.redirect(`${origin}${target}`);
   }
 
-  // Returning user with a deep-link target (e.g. fan coming back to an event).
   if (next) {
     return NextResponse.redirect(`${origin}${next}`);
   }
 
-  if (profile.role === "artist") {
+  if (role === "artist") {
     return NextResponse.redirect(`${origin}/dashboard`);
   }
 

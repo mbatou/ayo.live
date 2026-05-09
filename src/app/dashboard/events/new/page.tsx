@@ -57,7 +57,7 @@ export default function NewEventPage() {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) {
-      router.push("/auth/signin?next=/dashboard/events/new");
+      router.push("/auth/signin?role=artist&next=/dashboard/events/new");
       return;
     }
 
