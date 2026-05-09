@@ -1,12 +1,16 @@
 -- ============================================
--- Ayo test seed data
+-- Ayo test seed data (manual SQL path)
 -- ============================================
--- This is NOT a numbered migration on purpose: it depends on
--- specific auth.users rows existing first, which `supabase db push`
--- can't create. Run it manually after seeding the test accounts.
+-- PREFERRED: run `npm run seed:test` instead. That script creates
+-- the auth users for you and then runs the same insert/upsert logic
+-- below. It's idempotent and one command.
+--
+-- This file is kept for the "I'm in the Supabase SQL editor and
+-- don't want to leave the browser" path. Caveat: SQL alone cannot
+-- create auth users, so you must do that manually first.
 --
 -- Step 1 — In Supabase Dashboard → Authentication → Users → Add user,
--- create two accounts with "Confirm user" checked:
+-- create two accounts with "Auto Confirm User" checked:
 --
 --   artist@ayo.live   password: AyoTest2026!
 --   fan@ayo.live      password: AyoTest2026!
