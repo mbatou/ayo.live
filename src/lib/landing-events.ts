@@ -76,30 +76,39 @@ function toLanding(
   };
 }
 
-// Loads published+live events scheduled in the future from the DB and
-// returns them in the landing-card shape. On any error or empty state
-// returns []; the landing components fall back to placeholder data so
-// the page never looks empty during dev or before the seed has run.
-export async function loadLandingEvents(): Promise<PlaceholderEvent[]> {
+export type LandingData = {
+  events: PlaceholderEvent[];
+  genres: string[];
+};
+
+// Loads published+live events scheduled in the future (or up to 2h ago,
+// to keep just-ended shows visible briefly), plus the distinct genres
+// for the filter pills. Returns { events: [], genres: [] } on failure;
+// the landing components fall back to placeholder data when events is
+// empty so the page never looks dead.
+export async function loadLandingEvents(): Promise<LandingData> {
   try {
     const service = createServiceClient();
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     const { data: rawEvents, error } = await service
       .from("events")
       .select(
         "id, title, genre, scheduled_at, ticket_price, ticket_limit, status, is_group, profiles(display_name, location)",
       )
       .in("status", ["published", "live"])
-      .gt("scheduled_at", new Date().toISOString())
+      .gt("scheduled_at", twoHoursAgo)
+      // live first, then nearest upcoming
+      .order("status", { ascending: false })
       .order("scheduled_at", { ascending: true })
       .limit(12);
 
     if (error) {
       console.error("[landing-events] fetch error:", error.message);
-      return [];
+      return { events: [], genres: [] };
     }
 
     const events = (rawEvents ?? []) as unknown as DbEventWithJoin[];
-    if (events.length === 0) return [];
+    if (events.length === 0) return { events: [], genres: [] };
 
     const ids = events.map((e) => e.id);
     const { data: rawTickets } = await service
@@ -113,9 +122,18 @@ export async function loadLandingEvents(): Promise<PlaceholderEvent[]> {
       counts[t.event_id] = (counts[t.event_id] ?? 0) + 1;
     }
 
-    return events.map((e) => toLanding(e, counts[e.id] ?? 0));
+    const mapped = events.map((e) => toLanding(e, counts[e.id] ?? 0));
+    const genres = Array.from(
+      new Set(
+        events
+          .map((e) => e.genre)
+          .filter((g): g is string => typeof g === "string" && g.length > 0),
+      ),
+    );
+
+    return { events: mapped, genres };
   } catch (err) {
     console.error("[landing-events] failed:", err);
-    return [];
+    return { events: [], genres: [] };
   }
 }

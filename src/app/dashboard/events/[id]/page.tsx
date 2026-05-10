@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { EventActions } from "@/components/dashboard/EventActions";
+import { StreamSetupPanel } from "@/components/dashboard/StreamSetupPanel";
 import type { EventStatus } from "@/types";
 
 type Params = Promise<{ id: string }>;
@@ -116,17 +117,14 @@ export default async function ArtistEventPage({
             <span className="text-white">Group / band event</span>
           </Row>
         )}
-        {event.mux_stream_key && (
-          <div className="pt-3 border-t border-border-subtle">
-            <p className="text-xs text-text-muted mb-1">
-              Stream key (OBS / Streamlabs)
-            </p>
-            <code className="text-xs text-ayo-gold bg-stage-black rounded px-2 py-1 block truncate">
-              {event.mux_stream_key}
-            </code>
-          </div>
-        )}
       </div>
+
+      {event.mux_stream_key && (
+        <StreamSetupPanel
+          streamKey={event.mux_stream_key}
+          status={event.status}
+        />
+      )}
 
       {payout && (
         <div className="bg-[#111] border border-border-subtle rounded-card p-5 mb-6">

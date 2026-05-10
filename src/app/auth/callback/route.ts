@@ -44,13 +44,14 @@ export async function GET(request: Request) {
 
   // Sign-in carries the role the user just picked. Upsert it so:
   //   - first-time users get a profile created without a separate
-  //     /onboarding hop
+  //     /onboarding hop for the role pick
   //   - existing users (including fans created by the old auto-profile
   //     trigger) can switch role by signing in via ?role=artist|fan
-  // Magic links are bound to the recipient's email, so only the account
-  // owner can trigger this. /onboarding stays as a fallback for sessions
-  // that arrive without a role param.
+  // We deliberately do NOT seed display_name from email — keeping it
+  // null lets /dashboard/onboarding detect new artists and walk them
+  // through the artist-specific multistep.
   let role: string | null = null;
+  let displayName: string | null = null;
   if (pickedRole) {
     const { data: upserted, error: upsertErr } = await service
       .from("profiles")
@@ -58,24 +59,25 @@ export async function GET(request: Request) {
         {
           id: user.id,
           role: pickedRole,
-          display_name: user.email ?? null,
         },
         { onConflict: "id" },
       )
-      .select("role")
+      .select("role, display_name")
       .single();
     if (upsertErr) {
       console.error("[auth/callback] profile upsert error:", upsertErr);
       return NextResponse.redirect(`${origin}/auth/error`);
     }
     role = upserted?.role ?? null;
+    displayName = upserted?.display_name ?? null;
   } else {
     const { data: existing } = await service
       .from("profiles")
-      .select("role")
+      .select("role, display_name")
       .eq("id", user.id)
       .single();
     role = existing?.role ?? null;
+    displayName = existing?.display_name ?? null;
   }
 
   if (!role) {
@@ -90,6 +92,11 @@ export async function GET(request: Request) {
   }
 
   if (role === "artist") {
+    // Artists without a display_name haven't completed the onboarding
+    // wizard yet; route them through it before dropping them in /dashboard.
+    if (!displayName) {
+      return NextResponse.redirect(`${origin}/dashboard/onboarding`);
+    }
     return NextResponse.redirect(`${origin}/dashboard`);
   }
   if (role === "fan") {

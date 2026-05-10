@@ -12,7 +12,7 @@ import { loadLandingEvents } from "@/lib/landing-events";
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const events = await loadLandingEvents();
+  const { events, genres } = await loadLandingEvents();
 
   // Hero shows the live event if any, else the next upcoming. Falls
   // back to the placeholder featured event inside HeroSection if both
@@ -25,7 +25,7 @@ export default async function HomePage() {
       <HeroSection featuredEvent={featured} />
       <StatsBar />
       <WaitlistSection />
-      <ShowGrid events={events} />
+      <ShowGrid events={events} genres={genres} />
       <Footer />
     </main>
   );

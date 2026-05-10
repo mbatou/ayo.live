@@ -23,6 +23,15 @@ function destinationFor(role: string | null, next: string | null): string {
   return "/";
 }
 
+// New artists who just signed up haven't completed the artist onboarding
+// wizard yet (display_name is null). Send them through it before the
+// dashboard. If `next` is set the original flow wins.
+function signupDestination(role: Role, next: string | null): string {
+  if (next) return next;
+  if (role === "artist") return "/dashboard/onboarding";
+  return "/fan";
+}
+
 export default function SignInPage() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("signup");
@@ -131,11 +140,13 @@ export default function SignInPage() {
         }
 
         // Auto-confirmed: write the profile ourselves and route. The
-        // INSERT/UPDATE policies from migration 0009 cover this.
+        // INSERT/UPDATE policies from migration 0009 cover this. We do
+        // not seed display_name — artists pick that in the onboarding
+        // wizard so the !display_name redirect can detect new accounts.
         const { error: upsertErr } = await supabase
           .from("profiles")
           .upsert(
-            { id: data.user.id, role: signupRole, display_name: email },
+            { id: data.user.id, role: signupRole },
             { onConflict: "id" },
           );
         if (upsertErr) {
@@ -146,7 +157,7 @@ export default function SignInPage() {
           return;
         }
         // Full reload so server components pick up the new auth cookie.
-        window.location.href = destinationFor(signupRole, next);
+        window.location.href = signupDestination(signupRole, next);
         return;
       }
 
@@ -176,10 +187,11 @@ export default function SignInPage() {
       let finalRole: string | null = null;
       const pickedRole: Role | null = role;
       if (pickedRole) {
+        // Don't overwrite an existing display_name on role-switch.
         const { data: upserted, error: upsertErr } = await supabase
           .from("profiles")
           .upsert(
-            { id: user.id, role: pickedRole, display_name: email },
+            { id: user.id, role: pickedRole },
             { onConflict: "id" },
           )
           .select("role")
