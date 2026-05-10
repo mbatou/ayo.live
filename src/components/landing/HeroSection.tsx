@@ -1,12 +1,21 @@
 import Link from "next/link";
 import { LiveBadge } from "@/components/ui/LiveBadge";
 import { ProtectedBadge } from "@/components/ui/ProtectedBadge";
-import { FEATURED_EVENT, GENRE_TINTS } from "@/lib/placeholder-data";
+import {
+  FEATURED_EVENT,
+  GENRE_TINTS,
+  type PlaceholderEvent,
+} from "@/lib/placeholder-data";
 
-export function HeroSection() {
-  const event = FEATURED_EVENT;
+interface Props {
+  featuredEvent?: PlaceholderEvent;
+}
+
+export function HeroSection({ featuredEvent }: Props = {}) {
+  const event = featuredEvent ?? FEATURED_EVENT;
   const tint = GENRE_TINTS[event.genre] ?? GENRE_TINTS.default;
   const ticketHref = event.dbEventId ? `/events/${event.dbEventId}` : "/#shows";
+  const headerLabel = event.isLive ? "Happening now" : "Up next";
 
   return (
     <section id="live" className="border-b border-border-subtle">
@@ -53,17 +62,25 @@ export function HeroSection() {
                 {event.artistInitials}
               </span>
               <div className="absolute top-3 left-3">
-                <LiveBadge />
+                {event.isLive ? (
+                  <LiveBadge />
+                ) : (
+                  <span className="text-[10px] uppercase tracking-[0.18em] text-stage-black bg-ayo-gold/90 backdrop-blur px-2 py-1 rounded-badge font-semibold">
+                    Up next
+                  </span>
+                )}
               </div>
               <div className="absolute top-3 right-3 text-[11px] font-medium text-text-primary bg-stage-black/70 backdrop-blur px-2 py-1 rounded-badge">
-                {event.ticketsSold.toLocaleString()} watching
+                {event.isLive
+                  ? `${event.ticketsSold.toLocaleString()} watching`
+                  : `${event.ticketsSold.toLocaleString()} going`}
               </div>
             </div>
 
             <div className="p-5 space-y-4">
               <div>
                 <p className="text-[11px] tracking-[0.18em] text-text-muted uppercase mb-1">
-                  Happening now · {event.location}
+                  {headerLabel} · {event.location}
                 </p>
                 <h3 className="font-display font-semibold text-text-primary text-xl leading-snug">
                   {event.title}

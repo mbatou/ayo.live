@@ -3,22 +3,37 @@
 import { useMemo, useState } from "react";
 import { EventCard } from "./EventCard";
 import { GenreFilter } from "./GenreFilter";
-import { PLACEHOLDER_EVENTS } from "@/lib/placeholder-data";
+import {
+  PLACEHOLDER_EVENTS,
+  type PlaceholderEvent,
+} from "@/lib/placeholder-data";
 
-export function ShowGrid() {
+interface Props {
+  events?: PlaceholderEvent[];
+}
+
+export function ShowGrid({ events: incoming }: Props = {}) {
+  // If the DB returned nothing (empty table, fetch failure, dev with no
+  // seed), fall back to the placeholder set so the page still feels
+  // populated. When real events are present they take over.
+  const allEvents =
+    incoming && incoming.length > 0 ? incoming : PLACEHOLDER_EVENTS;
+
   const [active, setActive] = useState("All");
 
   const events = useMemo(() => {
-    if (active === "All") return PLACEHOLDER_EVENTS;
-    return PLACEHOLDER_EVENTS.filter((e) => e.genre === active);
-  }, [active]);
+    if (active === "All") return allEvents;
+    return allEvents.filter((e) => e.genre === active);
+  }, [active, allEvents]);
 
   const countries = useMemo(() => {
     const set = new Set(
-      PLACEHOLDER_EVENTS.map((e) => e.location.split(",").pop()?.trim()),
+      allEvents
+        .map((e) => e.location.split(",").pop()?.trim())
+        .filter((s): s is string => Boolean(s)),
     );
     return set.size;
-  }, []);
+  }, [allEvents]);
 
   return (
     <section id="shows" className="border-b border-border-subtle">
@@ -28,7 +43,8 @@ export function ShowGrid() {
             This week on Ayo
           </h2>
           <p className="text-[11px] tracking-[0.18em] text-text-muted uppercase">
-            {PLACEHOLDER_EVENTS.length} upcoming · {countries} countries
+            {allEvents.length} upcoming · {countries}{" "}
+            {countries === 1 ? "country" : "countries"}
           </p>
         </div>
 
