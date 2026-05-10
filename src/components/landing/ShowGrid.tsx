@@ -5,19 +5,25 @@ import { EventCard } from "./EventCard";
 import { GenreFilter } from "./GenreFilter";
 import {
   PLACEHOLDER_EVENTS,
+  GENRES as PLACEHOLDER_GENRES,
   type PlaceholderEvent,
 } from "@/lib/placeholder-data";
 
 interface Props {
   events?: PlaceholderEvent[];
+  genres?: string[];
 }
 
-export function ShowGrid({ events: incoming }: Props = {}) {
+export function ShowGrid({ events: incoming, genres: incomingGenres }: Props = {}) {
   // If the DB returned nothing (empty table, fetch failure, dev with no
   // seed), fall back to the placeholder set so the page still feels
-  // populated. When real events are present they take over.
-  const allEvents =
-    incoming && incoming.length > 0 ? incoming : PLACEHOLDER_EVENTS;
+  // populated. When real events are present they take over — including
+  // the genre pills, which come from the active set.
+  const usingFallback = !incoming || incoming.length === 0;
+  const allEvents = usingFallback ? PLACEHOLDER_EVENTS : incoming;
+  const genres = usingFallback
+    ? PLACEHOLDER_GENRES.slice(1) // strip the leading "All"
+    : incomingGenres ?? [];
 
   const [active, setActive] = useState("All");
 
@@ -49,7 +55,7 @@ export function ShowGrid({ events: incoming }: Props = {}) {
         </div>
 
         <div className="mb-8">
-          <GenreFilter active={active} onChange={setActive} />
+          <GenreFilter active={active} onChange={setActive} genres={genres} />
         </div>
 
         {events.length === 0 ? (

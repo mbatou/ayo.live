@@ -52,14 +52,14 @@ export default function OnboardingPage() {
 
       // Upsert: the profile row may not exist yet (post-0009 signups
       // don't auto-create one), and may exist for users who came via
-      // the old trigger.
+      // the old trigger. Don't seed display_name from email — artists
+      // pick that in /dashboard/onboarding.
       const { error: upsertErr } = await supabase
         .from("profiles")
         .upsert(
           {
             id: user.id,
             role: selected,
-            display_name: user.email ?? null,
           },
           { onConflict: "id" },
         );
@@ -74,7 +74,8 @@ export default function OnboardingPage() {
       const next = safeNext(
         new URLSearchParams(window.location.search).get("next"),
       );
-      const target = next ?? (selected === "artist" ? "/dashboard" : "/fan");
+      const target =
+        next ?? (selected === "artist" ? "/dashboard/onboarding" : "/fan");
       router.push(target);
     } catch (err) {
       console.error("[onboarding] failed:", err);

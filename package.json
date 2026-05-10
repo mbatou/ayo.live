@@ -10,6 +10,9 @@
     "seed:test": "node --env-file=.env.local scripts/seed-test-data.mjs"
   },
   "dependencies": {
+    "@fingerprintjs/fingerprintjs": "^5.2.0",
+    "@mux/mux-node": "^14.0.1",
+    "@mux/mux-player-react": "^3.13.0",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.105.0",
     "@tabler/icons-webfont": "^3.44.0",

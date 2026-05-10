@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-const NAV = [
+const BASE_NAV = [
   { href: "/dashboard", icon: "ti-layout-dashboard", label: "Overview" },
   { href: "/dashboard/events", icon: "ti-calendar-event", label: "My events" },
   { href: "/dashboard/events/new", icon: "ti-plus", label: "New event" },
@@ -14,6 +14,12 @@ const NAV = [
   { href: "/dashboard/settings", icon: "ti-settings", label: "Settings" },
 ] as const;
 
+const SETUP_ITEM = {
+  href: "/dashboard/onboarding",
+  icon: "ti-user-check",
+  label: "Setup",
+} as const;
+
 interface Props {
   profile: { display_name: string | null; location: string | null };
 }
@@ -21,6 +27,11 @@ interface Props {
 export function ArtistSidebar({ profile }: Props) {
   const pathname = usePathname();
   const initials = (profile.display_name ?? "AR").slice(0, 2).toUpperCase();
+  // Surface "Setup" only while the artist hasn't completed the wizard.
+  // Insert it right after Overview so it's the obvious next thing to do.
+  const nav = profile.display_name
+    ? BASE_NAV
+    : [BASE_NAV[0], SETUP_ITEM, ...BASE_NAV.slice(1)];
 
   return (
     <aside className="w-[200px] bg-[#111] border-r border-border-subtle flex flex-col flex-shrink-0 h-screen">
@@ -37,7 +48,7 @@ export function ArtistSidebar({ profile }: Props) {
       </div>
 
       <nav className="flex-1 py-4">
-        {NAV.map((item) => {
+        {nav.map((item) => {
           const active =
             pathname === item.href ||
             (item.href !== "/dashboard" && pathname?.startsWith(item.href));
