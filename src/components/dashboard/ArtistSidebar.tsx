@@ -10,6 +10,7 @@ const NAV = [
   { href: "/dashboard/events/new", icon: "ti-plus", label: "New event" },
   { href: "/dashboard/earnings", icon: "ti-chart-bar", label: "Earnings" },
   { href: "/dashboard/audience", icon: "ti-users", label: "Audience" },
+  { href: "/dashboard/qa", icon: "ti-checklist", label: "QA Checklist" },
   { href: "/dashboard/settings", icon: "ti-settings", label: "Settings" },
 ] as const;
 

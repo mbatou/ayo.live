@@ -1,130 +1,100 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { EventStatusPill } from "@/components/dashboard/EventStatusPill";
 import type { EventStatus } from "@/types";
 
-type EventRow = {
-  id: string;
-  title: string;
-  scheduled_at: string;
-  status: EventStatus;
-  ticket_price: number;
-  ticket_limit: number | null;
-  genre: string | null;
+const STATUS_STYLES: Record<EventStatus, string> = {
+  draft: "bg-ayo-gold/10 text-ayo-gold",
+  published: "bg-protected/10 text-protected",
+  live: "bg-live-red/10 text-live-red",
+  ended: "bg-border-subtle text-text-muted",
+  cancelled: "bg-border-subtle text-text-muted",
 };
 
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-export default async function ArtistEventsPage() {
+export default async function EventsListPage() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const userId = user!.id;
+  if (!user) redirect("/auth/signin");
 
   const service = createServiceClient();
-  const { data: rawEvents } = await service
+  const { data: events } = await service
     .from("events")
-    .select(
-      "id, title, scheduled_at, status, ticket_price, ticket_limit, genre",
-    )
-    .eq("artist_id", userId)
+    .select("id, title, scheduled_at, ticket_price, status")
+    .eq("artist_id", user.id)
     .order("scheduled_at", { ascending: false });
 
-  const events = (rawEvents ?? []) as EventRow[];
-
-  const eventIds = events.map((e) => e.id);
-  const ticketsByEvent: Record<string, number> = {};
-  if (eventIds.length > 0) {
-    const { data: tickets } = await service
-      .from("tickets")
-      .select("event_id")
-      .in("event_id", eventIds)
-      .eq("status", "confirmed");
-    for (const t of (tickets ?? []) as { event_id: string }[]) {
-      ticketsByEvent[t.event_id] = (ticketsByEvent[t.event_id] ?? 0) + 1;
-    }
-  }
+  const list = events ?? [];
 
   return (
-    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-5xl">
-      <div className="flex items-start justify-between gap-4 mb-8">
+    <div className="px-6 py-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="font-display text-3xl font-bold text-white">
-            Your events
+          <h1 className="font-display text-xl font-semibold text-white">
+            My events
           </h1>
-          <p className="text-text-secondary text-sm mt-1">
-            All shows you&apos;ve created — drafts, scheduled, and past.
+          <p className="text-text-muted text-sm mt-0.5">
+            {list.length} {list.length === 1 ? "event" : "events"} total
           </p>
         </div>
         <Link
           href="/dashboard/events/new"
-          className="bg-ayo-gold hover:bg-ayo-gold-hover text-stage-black font-semibold rounded-btn px-4 py-2 text-sm transition-colors shrink-0"
+          className="bg-ayo-gold hover:bg-ayo-gold-hover text-stage-black text-xs font-bold rounded-btn px-4 py-2.5 transition-colors"
         >
-          Create event
+          + New event
         </Link>
       </div>
 
-      {events.length === 0 ? (
-        <div className="bg-surface border border-border-subtle rounded-card p-10 text-center">
-          <p className="font-display text-xl text-white mb-2">
-            No events yet.
-          </p>
-          <p className="text-text-secondary text-sm mb-6 max-w-sm mx-auto">
-            Create your first show — set a date, set a price, and publish
-            when you&apos;re ready.
-          </p>
+      {list.length === 0 ? (
+        <div className="bg-[#111] border border-border-subtle rounded-card p-10 text-center">
+          <p className="text-text-muted text-sm mb-4">No events yet</p>
           <Link
             href="/dashboard/events/new"
-            className="inline-block bg-ayo-gold hover:bg-ayo-gold-hover text-stage-black font-semibold rounded-btn px-5 py-2.5 text-sm transition-colors"
+            className="inline-flex bg-ayo-gold text-stage-black text-xs font-bold rounded-btn px-4 py-2 hover:bg-ayo-gold-hover transition-colors"
           >
             Create your first event
           </Link>
         </div>
       ) : (
-        <ul className="space-y-2">
-          {events.map((event) => (
-            <li key={event.id}>
+        <div className="space-y-2">
+          {list.map((event) => {
+            const status = (event.status as EventStatus) ?? "draft";
+            return (
               <Link
+                key={event.id}
                 href={`/dashboard/events/${event.id}`}
-                className="flex items-center gap-4 bg-surface border border-border-subtle hover:border-ayo-gold/40 rounded-card p-4 transition-colors"
+                className="flex items-center gap-4 bg-[#111] border border-border-subtle rounded-[10px] px-4 py-3.5 hover:border-ayo-gold/20 transition-colors group"
               >
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-white font-medium truncate">
-                      {event.title}
-                    </p>
-                    <EventStatusPill status={event.status} />
-                  </div>
-                  <p className="text-text-muted text-xs">
-                    {formatDateTime(event.scheduled_at)}
-                    {event.genre ? ` · ${event.genre}` : ""}
+                  <p className="text-sm font-medium text-white truncate group-hover:text-ayo-gold transition-colors">
+                    {event.title}
+                  </p>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    {new Date(event.scheduled_at).toLocaleDateString("en-GB", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}{" "}
+                    · ${Number(event.ticket_price).toFixed(2)}
                   </p>
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="text-white text-sm">
-                    {ticketsByEvent[event.id] ?? 0}
-                    {event.ticket_limit ? ` / ${event.ticket_limit}` : ""}
-                  </p>
-                  <p className="text-text-muted text-xs">
-                    {event.ticket_price === 0
-                      ? "free"
-                      : `$${event.ticket_price.toFixed(2)}`}
-                  </p>
-                </div>
+                <span
+                  className={`text-[10px] font-medium px-2 py-0.5 rounded uppercase tracking-wide flex-shrink-0 ${STATUS_STYLES[status] ?? STATUS_STYLES.draft}`}
+                >
+                  {status}
+                </span>
+                <i
+                  className="ti ti-chevron-right text-text-muted text-base flex-shrink-0"
+                  aria-hidden="true"
+                />
               </Link>
-            </li>
-          ))}
-        </ul>
+            );
+          })}
+        </div>
       )}
     </div>
   );
