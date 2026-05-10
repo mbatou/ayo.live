@@ -14,6 +14,10 @@ export type PlaceholderEvent = {
   ticketsTotal: number;
   isLive: boolean;
   isGroup: boolean;
+  // Set when this placeholder maps to a real published DB event.
+  // Until ShowGrid is wired to read real events, this stays null and
+  // EventCard renders the "Launching soon" badge.
+  dbEventId?: string | null;
 };
 
 export const PLACEHOLDER_EVENTS: PlaceholderEvent[] = [

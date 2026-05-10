@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type Role = "artist" | "fan";
+
+const ROLE_INTENT_KEY = "ayo_intended_role";
 
 function safeNext(value: string | null): string | null {
   if (!value) return null;
@@ -18,6 +20,20 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Role | null>(null);
+
+  // Pre-select from the role intent the sign-in form stored, so users
+  // who came in via "Become an artist" don't have to pick again.
+  useEffect(() => {
+    try {
+      const intended = localStorage.getItem(ROLE_INTENT_KEY);
+      if (intended === "artist" || intended === "fan") {
+        setSelected(intended);
+        localStorage.removeItem(ROLE_INTENT_KEY);
+      }
+    } catch {
+      // localStorage can throw (private mode); ignore.
+    }
+  }, []);
 
   async function handleContinue() {
     if (!selected) return;
