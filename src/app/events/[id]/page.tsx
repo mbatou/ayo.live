@@ -73,13 +73,29 @@ export default async function EventPage({ params }: { params: Params }) {
   return (
     <main className="bg-stage-black min-h-screen">
       <div
-        className="relative w-full h-56 md:h-72 flex items-center justify-center"
-        style={{ background: "#111", borderBottom: "1px solid #2A2A2A" }}
+        className="relative w-full h-56 md:h-72 overflow-hidden"
+        style={
+          event.cover_url
+            ? { borderBottom: "1px solid #2A2A2A" }
+            : {
+                background: "#111",
+                borderBottom: "1px solid #2A2A2A",
+              }
+        }
       >
-        <span className="font-display text-5xl font-bold text-white/20">
-          {initials}
-        </span>
-        <div className="absolute top-4 left-4 flex gap-2">
+        {event.cover_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={event.cover_url}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          <span className="absolute inset-0 flex items-center justify-center font-display text-5xl font-bold text-white/20">
+            {initials}
+          </span>
+        )}
+        <div className="absolute top-4 left-4 flex gap-2 z-10">
           {isLive && <LiveBadge />}
           {event.is_group && (
             <span className="bg-surface-raised border border-border-subtle text-text-secondary px-2 py-0.5 rounded text-xs font-medium uppercase tracking-wide">
@@ -88,7 +104,7 @@ export default async function EventPage({ params }: { params: Params }) {
           )}
         </div>
         {isLive && (
-          <div className="absolute top-4 right-4 text-text-secondary text-xs">
+          <div className="absolute top-4 right-4 z-10 text-text-secondary text-xs bg-stage-black/70 backdrop-blur px-2 py-1 rounded">
             {soldCount.toLocaleString()} watching
           </div>
         )}

@@ -4,20 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-
-const GENRES = [
-  "Afrobeats",
-  "Highlife",
-  "Soul",
-  "Dub",
-  "Spoken Word",
-  "Yoruba Pop",
-  "Talk",
-  "R&B",
-  "Reggae",
-  "Jazz",
-  "Gospel",
-];
+import { ALLOWED_GENRES } from "@/lib/genres";
 
 type Form = {
   title: string;
@@ -129,7 +116,7 @@ export default function NewEventPage() {
             required
           >
             <option value="">Select genre</option>
-            {GENRES.map((g) => (
+            {ALLOWED_GENRES.map((g) => (
               <option key={g} value={g}>
                 {g}
               </option>
@@ -149,15 +136,20 @@ export default function NewEventPage() {
         </div>
 
         <div>
-          <label className={labelClass}>Ticket price (USD) *</label>
+          <label className={labelClass}>
+            Ticket price (GH₵) *{" "}
+            <span className="text-text-muted text-xs">
+              0 for a free show
+            </span>
+          </label>
           <input
             type="number"
-            min="1"
+            min="0"
             step="0.01"
             className={inputClass}
             value={form.ticket_price}
             onChange={(e) => set("ticket_price", e.target.value)}
-            placeholder="10.00"
+            placeholder="150.00"
             required
           />
         </div>

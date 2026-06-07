@@ -54,15 +54,28 @@ export function HeroSection({ featuredEvent }: Props = {}) {
         <div className="lg:col-span-2">
           <div className="bg-surface rounded-card border border-border-subtle overflow-hidden">
             <div
-              className="relative aspect-[16/10] flex items-center justify-center"
-              style={{
-                background: `repeating-linear-gradient(-45deg, ${tint}, ${tint} 10px, transparent 10px, transparent 20px), ${tint}`,
-              }}
+              className="relative aspect-[16/10] overflow-hidden bg-stage-black"
+              style={
+                event.coverUrl
+                  ? undefined
+                  : {
+                      background: `repeating-linear-gradient(-45deg, ${tint}, ${tint} 10px, transparent 10px, transparent 20px), ${tint}`,
+                    }
+              }
             >
-              <span className="font-display font-bold text-7xl md:text-8xl text-text-primary/20 tracking-tighter">
-                {event.artistInitials}
-              </span>
-              <div className="absolute top-3 left-3">
+              {event.coverUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={event.coverUrl}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              ) : (
+                <span className="absolute inset-0 flex items-center justify-center font-display font-bold text-7xl md:text-8xl text-text-primary/20 tracking-tighter">
+                  {event.artistInitials}
+                </span>
+              )}
+              <div className="absolute top-3 left-3 z-10">
                 {event.isLive ? (
                   <LiveBadge />
                 ) : (
@@ -71,7 +84,7 @@ export function HeroSection({ featuredEvent }: Props = {}) {
                   </span>
                 )}
               </div>
-              <div className="absolute top-3 right-3 text-[11px] font-medium text-text-primary bg-stage-black/70 backdrop-blur px-2 py-1 rounded-badge">
+              <div className="absolute top-3 right-3 z-10 text-[11px] font-medium text-text-primary bg-stage-black/70 backdrop-blur px-2 py-1 rounded-badge">
                 {event.isLive
                   ? `${event.ticketsSold.toLocaleString()} watching`
                   : `${event.ticketsSold.toLocaleString()} going`}

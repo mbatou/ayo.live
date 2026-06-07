@@ -39,16 +39,26 @@ export function TicketButton({ eventId, price }: Props) {
       return;
     }
 
+    // Free path: no Paystack, route straight to the watch token.
+    if (data.free && typeof data.watch_url === "string") {
+      window.location.href = data.watch_url;
+      return;
+    }
     window.location.href = data.authorization_url;
   }
 
+  const isFree = price === 0;
   return (
     <button
       onClick={handleBuy}
       disabled={loading}
       className="bg-ayo-gold hover:bg-ayo-gold-hover text-stage-black font-semibold rounded-btn px-6 py-3 text-sm transition-colors disabled:opacity-50 whitespace-nowrap"
     >
-      {loading ? "Loading…" : `Get ticket — ${formatGHS(price)}`}
+      {loading
+        ? "Loading…"
+        : isFree
+          ? "Get free ticket"
+          : `Get ticket — ${formatGHS(price)}`}
     </button>
   );
 }

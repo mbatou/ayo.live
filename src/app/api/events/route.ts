@@ -3,6 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createMuxLiveStream } from "@/lib/mux";
 import { requireArtist } from "@/lib/auth/guards";
+import {
+  validateEventCreate,
+  validationErrorResponse,
+} from "@/lib/validation/event";
 
 export const runtime = "nodejs";
 
@@ -28,35 +32,21 @@ export async function POST(req: NextRequest) {
   if (guard instanceof Response) return guard;
   const { user } = guard;
 
-  const body = await req.json();
-  const {
-    title,
-    description,
-    genre,
-    scheduled_at,
-    ticket_price,
-    ticket_limit,
-    is_group,
-  } = body;
-
-  if (!title || !scheduled_at || ticket_price == null) {
-    return NextResponse.json(
-      { error: "Missing required fields" },
-      { status: 400 },
-    );
-  }
+  const validation = validateEventCreate(await req.json().catch(() => ({})));
+  if (!validation.ok) return validationErrorResponse(validation.errors);
+  const v = validation.value;
 
   const { data: event, error } = await supabase
     .from("events")
     .insert({
       artist_id: user.id,
-      title,
-      description: description ?? null,
-      genre: genre ?? null,
-      scheduled_at,
-      ticket_price,
-      ticket_limit: ticket_limit ?? null,
-      is_group: is_group ?? false,
+      title: v.title,
+      description: v.description,
+      genre: v.genre,
+      scheduled_at: v.scheduled_at,
+      ticket_price: v.ticket_price,
+      ticket_limit: v.ticket_limit,
+      is_group: v.is_group,
       status: "draft",
     })
     .select()

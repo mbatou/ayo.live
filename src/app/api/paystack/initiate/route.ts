@@ -3,8 +3,15 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { PAYSTACK_BASE_URL } from "@/lib/paystack";
 
-// POST /api/paystack/initiate — creates a pending ticket and returns the
-// Paystack hosted-checkout URL for the fan to complete payment.
+// POST /api/paystack/initiate — two paths:
+//  - Paid show (ticket_price > 0): create the ticket pending, hit
+//    Paystack, return the hosted-checkout URL. If Paystack rejects,
+//    the pending ticket is deleted in the same request so it can't
+//    accumulate as dead inventory.
+//  - Free show (ticket_price === 0): skip Paystack entirely, issue a
+//    confirmed ticket directly, return the watch token. One ticket
+//    per fan per free event — a free show shouldn't let one fan mint
+//    unlimited tokens.
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const {
@@ -36,8 +43,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
+  const service = createServiceClient();
+
   if (event.ticket_limit) {
-    const { count } = await supabase
+    const { count } = await service
       .from("tickets")
       .select("*", { count: "exact", head: true })
       .eq("event_id", event_id)
@@ -48,8 +57,53 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Insert via service role — RLS has no INSERT policy on tickets.
-  const service = createServiceClient();
+  // ─── Free path ────────────────────────────────────────────────────────
+  if (Number(event.ticket_price) === 0) {
+    const { data: existing } = await service
+      .from("tickets")
+      .select("id, token")
+      .eq("event_id", event_id)
+      .eq("fan_id", user.id)
+      .eq("status", "confirmed")
+      .maybeSingle();
+    if (existing?.token) {
+      // Idempotent: same fan re-clicks → same watch token.
+      return NextResponse.json({
+        free: true,
+        ticket_id: existing.id,
+        watch_url: `/watch/${existing.token}`,
+      });
+    }
+
+    const { data: ticket, error: insertErr } = await service
+      .from("tickets")
+      .insert({
+        event_id,
+        fan_id: user.id,
+        amount_paid: 0,
+        currency: "GHS",
+        status: "confirmed",
+        paystack_reference: `free_${Date.now()}`,
+      })
+      .select("id, token")
+      .single();
+
+    if (insertErr || !ticket) {
+      console.error("[initiate] free ticket insert failed:", insertErr);
+      return NextResponse.json(
+        { error: "Could not issue ticket" },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({
+      free: true,
+      ticket_id: ticket.id,
+      watch_url: `/watch/${ticket.token}`,
+    });
+  }
+
+  // ─── Paid path ────────────────────────────────────────────────────────
   const { data: ticket, error: ticketError } = await service
     .from("tickets")
     .insert({
@@ -71,35 +125,52 @@ export async function POST(req: NextRequest) {
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
 
-  const paystackRes = await fetch(
-    `${PAYSTACK_BASE_URL}/transaction/initialize`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email: user.email,
-        // Ayo is GHS-only. ticket_price is GHS major units (e.g. 150
-        // means GH₵150.00); *100 yields pesewas. No FX anywhere.
-        amount: Math.round(event.ticket_price * 100),
-        currency: "GHS",
-        reference: ticket.id,
-        metadata: {
-          event_id,
-          ticket_id: ticket.id,
-          fan_id: user.id,
-          event_title: event.title,
+  let paystackData: {
+    status?: boolean;
+    message?: string;
+    data?: { authorization_url?: string; reference?: string };
+  };
+  try {
+    const paystackRes = await fetch(
+      `${PAYSTACK_BASE_URL}/transaction/initialize`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          "Content-Type": "application/json",
         },
-        callback_url: `${appUrl}/api/paystack/verify?ticket_id=${ticket.id}`,
-      }),
-    },
-  );
+        body: JSON.stringify({
+          email: user.email,
+          // Ayo is GHS-only. ticket_price is GHS major units (e.g. 150
+          // means GH₵150.00); *100 yields pesewas. No FX anywhere.
+          amount: Math.round(event.ticket_price * 100),
+          currency: "GHS",
+          reference: ticket.id,
+          metadata: {
+            event_id,
+            ticket_id: ticket.id,
+            fan_id: user.id,
+            event_title: event.title,
+          },
+          callback_url: `${appUrl}/api/paystack/verify?ticket_id=${ticket.id}`,
+        }),
+      },
+    );
+    paystackData = await paystackRes.json();
+  } catch (err) {
+    // Paystack unreachable — drop the orphan and surface the error.
+    await service.from("tickets").delete().eq("id", ticket.id);
+    console.error("[initiate] paystack fetch failed:", err);
+    return NextResponse.json(
+      { error: "Could not reach Paystack" },
+      { status: 502 },
+    );
+  }
 
-  const paystackData = await paystackRes.json();
-
-  if (!paystackData.status) {
+  if (!paystackData.status || !paystackData.data?.authorization_url) {
+    // Paystack rejected init — drop the orphan pending ticket so it
+    // doesn't accumulate as dead inventory.
+    await service.from("tickets").delete().eq("id", ticket.id);
     return NextResponse.json(
       { error: `Paystack error: ${paystackData.message ?? "unknown"}` },
       { status: 500 },
