@@ -18,6 +18,10 @@ export type PlaceholderEvent = {
   // Until ShowGrid is wired to read real events, this stays null and
   // EventCard renders the "Launching soon" badge.
   dbEventId?: string | null;
+  // Custom banner from /api/events/[id]/banner. When null/undefined,
+  // the EventCard / HeroSection fall back to the generated diagonal
+  // stripe + initials banner. Never a broken-image state.
+  coverUrl?: string | null;
 };
 
 export const PLACEHOLDER_EVENTS: PlaceholderEvent[] = [

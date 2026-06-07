@@ -24,21 +24,35 @@ export function EventCard({ event }: Props) {
       }
     >
       <div
-        className="relative aspect-[16/9] flex items-center justify-center"
-        style={{
-          background: `repeating-linear-gradient(-45deg, ${tint}, ${tint} 10px, transparent 10px, transparent 20px), ${tint}`,
-        }}
+        className="relative aspect-[16/9] overflow-hidden bg-stage-black"
+        style={
+          event.coverUrl
+            ? undefined
+            : {
+                background: `repeating-linear-gradient(-45deg, ${tint}, ${tint} 10px, transparent 10px, transparent 20px), ${tint}`,
+              }
+        }
       >
-        <span className="font-display font-bold text-6xl md:text-7xl text-text-primary/15 tracking-tighter">
-          {event.artistInitials}
-        </span>
+        {event.coverUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={event.coverUrl}
+            alt=""
+            loading="lazy"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          <span className="absolute inset-0 flex items-center justify-center font-display font-bold text-6xl md:text-7xl text-text-primary/15 tracking-tighter">
+            {event.artistInitials}
+          </span>
+        )}
         {event.isLive && (
-          <div className="absolute top-3 left-3">
+          <div className="absolute top-3 left-3 z-10">
             <LiveBadge />
           </div>
         )}
         {event.isGroup && (
-          <div className="absolute top-3 right-3">
+          <div className="absolute top-3 right-3 z-10">
             <GroupBadge />
           </div>
         )}

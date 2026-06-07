@@ -15,6 +15,7 @@ type DbEventWithJoin = {
   ticket_limit: number | null;
   status: string;
   is_group: boolean;
+  cover_url: string | null;
   profiles: ProfileJoin;
 };
 
@@ -73,6 +74,7 @@ function toLanding(
     isLive: ev.status === "live",
     isGroup: !!ev.is_group,
     dbEventId: ev.id,
+    coverUrl: ev.cover_url,
   };
 }
 
@@ -93,7 +95,7 @@ export async function loadLandingEvents(): Promise<LandingData> {
     const { data: rawEvents, error } = await service
       .from("events")
       .select(
-        "id, title, genre, scheduled_at, ticket_price, ticket_limit, status, is_group, profiles(display_name, location)",
+        "id, title, genre, scheduled_at, ticket_price, ticket_limit, status, is_group, cover_url, profiles(display_name, location)",
       )
       .in("status", ["published", "live"])
       .gt("scheduled_at", twoHoursAgo)

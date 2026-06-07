@@ -4,7 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { EventActions } from "@/components/dashboard/EventActions";
 import { StreamSetupPanel } from "@/components/dashboard/StreamSetupPanel";
+import { BannerUpload } from "@/components/dashboard/BannerUpload";
 import { formatGHS } from "@/lib/currency";
+import { GENRE_TINTS } from "@/lib/placeholder-data";
 import type { EventStatus } from "@/types";
 
 type Params = Promise<{ id: string }>;
@@ -119,6 +121,15 @@ export default async function ArtistEventPage({
           </Row>
         )}
       </div>
+
+      <BannerUpload
+        eventId={event.id}
+        currentBannerUrl={event.cover_url ?? null}
+        fallbackTint={
+          GENRE_TINTS[event.genre as string] ?? GENRE_TINTS.default
+        }
+        fallbackInitials={(event.title ?? "EV").slice(0, 2).toUpperCase()}
+      />
 
       {event.mux_stream_key && (
         <StreamSetupPanel

@@ -1,24 +1,19 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireEventOwner } from "@/lib/auth/guards";
+import {
+  validateEventPatch,
+  validationErrorResponse,
+} from "@/lib/validation/event";
 import type { Database } from "@/types/database";
 import type { EventStatus } from "@/types";
 
 type RouteParams = { params: Promise<{ id: string }> };
 type EventUpdate = Database["public"]["Tables"]["events"]["Update"];
 
-const UPDATABLE_FIELDS = [
-  "title",
-  "description",
-  "genre",
-  "scheduled_at",
-  "ticket_price",
-  "ticket_limit",
-  "is_group",
-  "cover_url",
-  "status",
-] as const satisfies ReadonlyArray<keyof EventUpdate>;
-
+// Status + cover_url are accepted on PATCH but go through their own
+// guards rather than validateEventPatch (status has its own enum check
+// in /api/events/[id]/action; cover_url is written via /banner upload).
 const ALLOWED_STATUSES: EventStatus[] = [
   "draft",
   "published",
@@ -41,21 +36,30 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   const guard = await requireEventOwner(supabase, id);
   if (guard instanceof Response) return guard;
 
-  const body = await req.json();
-  const patch: EventUpdate = {};
-  for (const field of UPDATABLE_FIELDS) {
-    if (field in body) {
-      // Field-by-field assignment; trust the runtime check on `status` below
-      // and let Supabase's column types handle the rest at the DB layer.
-      (patch as Record<string, unknown>)[field] = body[field];
-    }
-  }
+  const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
 
-  if (
-    typeof patch.status === "string" &&
-    !ALLOWED_STATUSES.includes(patch.status)
-  ) {
-    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+  // Validate the standard fields. status + cover_url are handled separately
+  // so they can pass through without being treated as required.
+  const validation = validateEventPatch(body);
+  if (!validation.ok) return validationErrorResponse(validation.errors);
+  const patch: EventUpdate = { ...validation.value };
+
+  if ("status" in body) {
+    const status = body.status;
+    if (typeof status !== "string" || !ALLOWED_STATUSES.includes(status as EventStatus)) {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    }
+    patch.status = status as EventStatus;
+  }
+  if ("cover_url" in body) {
+    const cover = body.cover_url;
+    if (cover != null && typeof cover !== "string") {
+      return NextResponse.json(
+        { error: "cover_url must be a string or null" },
+        { status: 400 },
+      );
+    }
+    patch.cover_url = (cover as string | null) ?? null;
   }
 
   if (Object.keys(patch).length === 0) {
