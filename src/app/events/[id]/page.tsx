@@ -31,7 +31,7 @@ const INCLUDED = [
   {
     icon: "💬",
     title: "Live chat",
-    desc: "Talk back during the show",
+    desc: "React with the crowd",
   },
 ];
 
