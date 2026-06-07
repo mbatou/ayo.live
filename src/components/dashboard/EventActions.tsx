@@ -32,6 +32,16 @@ export function EventActions({ event, ticketsSold, net }: Props) {
     const data = await res.json().catch(() => ({}));
     setLoading(null);
     if (!res.ok) {
+      // Session expired or got dropped mid-flow — send the artist back to
+      // sign-in instead of leaving them staring at "Unauthorised". The
+      // `next` param brings them straight back here.
+      if (res.status === 401) {
+        const next = `/dashboard/events/${event.id}`;
+        router.push(
+          `/auth/signin?role=artist&next=${encodeURIComponent(next)}`,
+        );
+        return;
+      }
       setError(data.error ?? "Something went wrong");
       return;
     }

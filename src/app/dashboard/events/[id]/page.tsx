@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { EventActions } from "@/components/dashboard/EventActions";
 import { StreamSetupPanel } from "@/components/dashboard/StreamSetupPanel";
+import { ProvisionStreamPanel } from "@/components/dashboard/ProvisionStreamPanel";
 import { BannerUpload } from "@/components/dashboard/BannerUpload";
 import { formatGHS } from "@/lib/currency";
 import { GENRE_TINTS } from "@/lib/placeholder-data";
@@ -131,12 +132,19 @@ export default async function ArtistEventPage({
         fallbackInitials={(event.title ?? "EV").slice(0, 2).toUpperCase()}
       />
 
-      {event.mux_stream_key && (
+      {event.mux_stream_key ? (
         <StreamSetupPanel
           streamKey={event.mux_stream_key}
           status={event.status}
         />
-      )}
+      ) : event.status === "draft" ||
+        event.status === "published" ||
+        event.status === "live" ? (
+        <ProvisionStreamPanel
+          eventId={event.id}
+          status={event.status}
+        />
+      ) : null}
 
       {payout && (
         <div className="bg-[#111] border border-border-subtle rounded-card p-5 mb-6">

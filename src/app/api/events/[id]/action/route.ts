@@ -4,15 +4,22 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { PAYSTACK_BASE_URL } from "@/lib/paystack";
 import { formatGHS } from "@/lib/currency";
 import { requireEventOwner } from "@/lib/auth/guards";
+import { createMuxLiveStream } from "@/lib/mux";
+import type { Database } from "@/types/database";
+
+export const runtime = "nodejs";
+
+type EventUpdate = Database["public"]["Tables"]["events"]["Update"];
 
 type RouteParams = { params: Promise<{ id: string }> };
-type Action = "publish" | "go_live" | "end" | "payout";
+type Action = "publish" | "go_live" | "end" | "payout" | "provision_mux";
 
 const ACTIONS: ReadonlyArray<Action> = [
   "publish",
   "go_live",
   "end",
   "payout",
+  "provision_mux",
 ] as const;
 
 function isAction(value: unknown): value is Action {
@@ -34,6 +41,48 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   }
 
   const service = createServiceClient();
+
+  if (action === "provision_mux") {
+    // Retry path for events whose creation predated Mux env vars (or hit
+    // a transient Mux outage). Safe to call any time the event has no
+    // mux_stream_key — including a confused 'live' status that was
+    // manually flipped without a real stream behind it.
+    if (event.mux_stream_key) {
+      return NextResponse.json(
+        { error: "This event already has a stream key" },
+        { status: 400 },
+      );
+    }
+    let muxData;
+    try {
+      muxData = await createMuxLiveStream();
+    } catch (err) {
+      console.error("[provision_mux] Mux failed:", err);
+      return NextResponse.json(
+        {
+          error:
+            "Mux rejected the request. Confirm MUX_TOKEN_ID and MUX_TOKEN_SECRET are set on Vercel for this environment, then redeploy.",
+        },
+        { status: 502 },
+      );
+    }
+    // If status was 'live' without a real stream, drop back to
+    // 'published' so the artist can re-go-live cleanly once OBS is
+    // connected. Otherwise leave status alone.
+    const patch: EventUpdate = { ...muxData };
+    if (event.status === "live") patch.status = "published";
+
+    const { error } = await service
+      .from("events")
+      .update(patch)
+      .eq("id", id);
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({
+      message: "Streaming set up — RTMP credentials are on this page.",
+    });
+  }
 
   if (action === "publish") {
     if (event.status !== "draft") {
