@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { requireEventOwner } from "@/lib/auth/guards";
 import type { Database } from "@/types/database";
 import type { EventStatus } from "@/types";
 
@@ -26,55 +27,19 @@ const ALLOWED_STATUSES: EventStatus[] = [
   "cancelled",
 ];
 
-async function loadOwnedEvent(supabase: Awaited<ReturnType<typeof createClient>>, id: string) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "Unauthorised" as const, status: 401 };
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile || profile.role !== "artist") {
-    return { error: "Artist account required" as const, status: 403 };
-  }
-
-  const { data: event, error } = await supabase
-    .from("events")
-    .select("*")
-    .eq("id", id)
-    .single();
-
-  if (error || !event) {
-    return { error: "Event not found" as const, status: 404 };
-  }
-  if (event.artist_id !== user.id) {
-    return { error: "Not your event" as const, status: 403 };
-  }
-
-  return { user, event };
-}
-
 export async function GET(_req: NextRequest, { params }: RouteParams) {
   const { id } = await params;
   const supabase = await createClient();
-  const result = await loadOwnedEvent(supabase, id);
-  if ("error" in result) {
-    return NextResponse.json({ error: result.error }, { status: result.status });
-  }
-  return NextResponse.json({ event: result.event });
+  const guard = await requireEventOwner(supabase, id);
+  if (guard instanceof Response) return guard;
+  return NextResponse.json({ event: guard.event });
 }
 
 export async function PATCH(req: NextRequest, { params }: RouteParams) {
   const { id } = await params;
   const supabase = await createClient();
-  const result = await loadOwnedEvent(supabase, id);
-  if ("error" in result) {
-    return NextResponse.json({ error: result.error }, { status: result.status });
-  }
+  const guard = await requireEventOwner(supabase, id);
+  if (guard instanceof Response) return guard;
 
   const body = await req.json();
   const patch: EventUpdate = {};
@@ -94,7 +59,10 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   }
 
   if (Object.keys(patch).length === 0) {
-    return NextResponse.json({ error: "No updatable fields provided" }, { status: 400 });
+    return NextResponse.json(
+      { error: "No updatable fields provided" },
+      { status: 400 },
+    );
   }
 
   const { data: event, error } = await supabase
@@ -113,10 +81,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 export async function DELETE(_req: NextRequest, { params }: RouteParams) {
   const { id } = await params;
   const supabase = await createClient();
-  const result = await loadOwnedEvent(supabase, id);
-  if ("error" in result) {
-    return NextResponse.json({ error: result.error }, { status: result.status });
-  }
+  const guard = await requireEventOwner(supabase, id);
+  if (guard instanceof Response) return guard;
 
   const { error } = await supabase.from("events").delete().eq("id", id);
   if (error) {
