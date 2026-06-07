@@ -45,6 +45,7 @@ function daysFromNow(days) {
   return new Date(Date.now() + days * 86_400_000).toISOString();
 }
 
+// Prices are GHS major units. Ayo is single-currency GHS end-to-end.
 const EVENTS = [
   {
     title: "Ɔdɔ Ne Asomdwoeɛ",
@@ -52,7 +53,7 @@ const EVENTS = [
       "A live highlife concert from Jamestown, Accra. 8 performers, 90 minutes of pure joy.",
     genre: "Highlife",
     scheduled_at: daysFromNow(13),
-    ticket_price: 10.0,
+    ticket_price: 150.0,
     ticket_limit: 2000,
     status: "published",
     is_group: true,
@@ -62,7 +63,7 @@ const EVENTS = [
     description: "Late night session. Acoustic set. Just the band and you.",
     genre: "Highlife",
     scheduled_at: daysFromNow(36),
-    ticket_price: 8.0,
+    ticket_price: 80.0,
     ticket_limit: 1000,
     status: "published",
     is_group: true,
@@ -163,8 +164,8 @@ async function ensureTicket(eventId, fanId) {
   const { error } = await supabase.from("tickets").insert({
     event_id: eventId,
     fan_id: fanId,
-    amount_paid: 10.0,
-    currency: "USD",
+    amount_paid: 150.0,
+    currency: "GHS",
     status: "confirmed",
     paystack_reference: "test_seed_001",
   });

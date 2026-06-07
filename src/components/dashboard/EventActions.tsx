@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { formatGHS } from "@/lib/currency";
 
 type Action = "publish" | "go_live" | "end" | "payout";
 
@@ -89,7 +90,7 @@ export function EventActions({ event, ticketsSold, net }: Props) {
         >
           {loading === "payout"
             ? "Initiating payout…"
-            : `Request payout — $${net.toFixed(2)}`}
+            : `Request payout — ${formatGHS(net)}`}
         </button>
       )}
 

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { TicketButton } from "@/components/events/TicketButton";
 import { LiveBadge } from "@/components/ui/LiveBadge";
 import { ProtectedBadge } from "@/components/ui/ProtectedBadge";
+import { formatGHS } from "@/lib/currency";
 import type { Event } from "@/types";
 
 type Params = { id: string };
@@ -147,7 +148,7 @@ export default async function EventPage({ params }: { params: Params }) {
           <div className="bg-surface-raised border border-border-subtle rounded-card p-4 flex items-center justify-between gap-4">
             <div>
               <p className="text-ayo-gold font-display font-bold text-xl">
-                ${event.ticket_price}
+                {formatGHS(Number(event.ticket_price))}
               </p>
               <p className="text-text-muted text-xs">per ticket</p>
             </div>

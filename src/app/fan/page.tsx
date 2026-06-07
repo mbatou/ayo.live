@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { formatGHS } from "@/lib/currency";
 
 type ArtistJoin = {
   display_name: string | null;
@@ -157,7 +158,7 @@ export default async function FanHomePage() {
                       <p
                         className={`text-[13px] font-semibold ${isUp ? "text-ayo-gold" : "text-text-muted"}`}
                       >
-                        ${Number(ticket.amount_paid).toFixed(0)}
+                        {formatGHS(Number(ticket.amount_paid))}
                       </p>
                       <span
                         className={`text-[10px] rounded px-1.5 py-0.5 mt-1 inline-block ${
@@ -215,7 +216,7 @@ export default async function FanHomePage() {
                       </p>
                       <div className="flex items-center justify-between">
                         <span className="text-[12px] font-semibold text-ayo-gold">
-                          ${Number(event.ticket_price).toFixed(0)}
+                          {formatGHS(Number(event.ticket_price))}
                         </span>
                         <span className="text-[10px] text-text-muted border border-border-subtle rounded px-1.5 py-0.5">
                           Get ticket

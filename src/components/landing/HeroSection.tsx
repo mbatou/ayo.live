@@ -6,6 +6,7 @@ import {
   GENRE_TINTS,
   type PlaceholderEvent,
 } from "@/lib/placeholder-data";
+import { formatGHS } from "@/lib/currency";
 
 interface Props {
   featuredEvent?: PlaceholderEvent;
@@ -93,7 +94,7 @@ export function HeroSection({ featuredEvent }: Props = {}) {
                 href={ticketHref}
                 className="block w-full text-center text-sm font-semibold text-stage-black bg-ayo-gold hover:bg-ayo-gold-hover py-3 rounded-btn transition-colors"
               >
-                Get ticket — ${event.price}
+                Get ticket — {formatGHS(event.price)}
               </Link>
               <div className="flex justify-center">
                 <ProtectedBadge />

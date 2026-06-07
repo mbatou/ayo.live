@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { PAYSTACK_BASE_URL } from "@/lib/paystack";
+import { formatGHS } from "@/lib/currency";
 
 type RouteParams = { params: Promise<{ id: string }> };
 type Action = "publish" | "go_live" | "end" | "payout";
@@ -195,7 +197,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     data?: { transfer_code?: string };
   };
   try {
-    const res = await fetch("https://api.paystack.co/transfer", {
+    const res = await fetch(`${PAYSTACK_BASE_URL}/transfer`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
@@ -203,11 +205,10 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       },
       body: JSON.stringify({
         source: "balance",
-        // amount is in the minor unit of the recipient's currency. The
-        // recipient was created with currency: 'GHS', so this is
-        // pesewas. NOTE: net is computed from amount_paid (USD on
-        // ticket rows today) — needs FX conversion or GHS-priced
-        // tickets before real money flows.
+        // amount is in the minor unit of the recipient's currency.
+        // Ayo is GHS-native: tickets.amount_paid holds GHS major
+        // units (e.g. 150 means GH₵150.00), so *100 yields pesewas.
+        // No FX multiplier anywhere in this path.
         amount: Math.round(net * 100),
         recipient: profile.paystack_id,
         reason: `Ayo payout — ${event.title}`,
@@ -250,6 +251,6 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     .eq("id", payout.id);
 
   return NextResponse.json({
-    message: `Payout of $${net.toFixed(2)} initiated — arrives within 24 hours`,
+    message: `Payout of ${formatGHS(net)} initiated — arrives within 24 hours`,
   });
 }

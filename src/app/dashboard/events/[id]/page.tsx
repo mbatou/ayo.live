@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { EventActions } from "@/components/dashboard/EventActions";
 import { StreamSetupPanel } from "@/components/dashboard/StreamSetupPanel";
+import { formatGHS } from "@/lib/currency";
 import type { EventStatus } from "@/types";
 
 type Params = Promise<{ id: string }>;
@@ -90,8 +91,8 @@ export default async function ArtistEventPage({
 
       <div className="grid grid-cols-3 gap-3 mb-6">
         <Stat label="Tickets sold" value={ticketsSold.toString()} />
-        <Stat label="Gross revenue" value={`$${gross.toFixed(2)}`} />
-        <Stat label="Your earnings (90%)" value={`$${net.toFixed(2)}`} />
+        <Stat label="Gross revenue" value={formatGHS(gross)} />
+        <Stat label="Your earnings (90%)" value={formatGHS(net)} />
       </div>
 
       <div className="bg-[#111] border border-border-subtle rounded-card p-5 mb-6 space-y-3">
@@ -102,7 +103,7 @@ export default async function ArtistEventPage({
         </Row>
         <Row label="Ticket price">
           <span className="text-white">
-            ${Number(event.ticket_price).toFixed(2)}
+            {formatGHS(Number(event.ticket_price))}
           </span>
         </Row>
         {event.ticket_limit && (
@@ -133,7 +134,7 @@ export default async function ArtistEventPage({
           </p>
           <div className="flex items-center justify-between">
             <span className="text-white text-sm font-medium">
-              ${Number(payout.net_amount).toFixed(2)}
+              {formatGHS(Number(payout.net_amount))}
             </span>
             <span
               className={`text-xs ${

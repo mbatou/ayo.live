@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { sendTicketEmail } from "@/lib/email/ticket";
+import { PAYSTACK_BASE_URL } from "@/lib/paystack";
 
 type ConfirmedTicket = {
   id: string;
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest) {
   }
 
   const verifyRes = await fetch(
-    `https://api.paystack.co/transaction/verify/${reference}`,
+    `${PAYSTACK_BASE_URL}/transaction/verify/${reference}`,
     {
       headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` },
     },

@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { PAYSTACK_BASE_URL } from "@/lib/paystack";
 import type { Database } from "@/types/database";
 
 type Body = {
@@ -84,7 +85,7 @@ export async function POST(req: NextRequest) {
     data?: { recipient_code?: string };
   };
   try {
-    const res = await fetch("https://api.paystack.co/transferrecipient", {
+    const res = await fetch(`${PAYSTACK_BASE_URL}/transferrecipient`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,

@@ -64,7 +64,7 @@ BEGIN
     'A live highlife concert from Jamestown, Accra. 8 performers, 90 minutes of pure joy.',
     'Highlife',
     NOW() + INTERVAL '13 days',
-    10.00, 2000, 'published', true
+    150.00, 2000, 'published', true
   WHERE NOT EXISTS (
     SELECT 1 FROM public.events
     WHERE artist_id = artist_uid AND title = 'Ɔdɔ Ne Asomdwoeɛ'
@@ -81,7 +81,7 @@ BEGIN
     'Late night session. Acoustic set. Just the band and you.',
     'Highlife',
     NOW() + INTERVAL '36 days',
-    8.00, 1000, 'published', true
+    80.00, 1000, 'published', true
   WHERE NOT EXISTS (
     SELECT 1 FROM public.events
     WHERE artist_id = artist_uid AND title = 'Highlife After Hours'
@@ -115,7 +115,7 @@ BEGIN
       event_id, fan_id, amount_paid, currency, status, paystack_reference
     )
     SELECT
-      hero_event_id, fan_uid, 10.00, 'USD', 'confirmed', 'test_seed_001'
+      hero_event_id, fan_uid, 150.00, 'GHS', 'confirmed', 'test_seed_001'
     WHERE NOT EXISTS (
       SELECT 1 FROM public.tickets
       WHERE event_id = hero_event_id AND fan_id = fan_uid
