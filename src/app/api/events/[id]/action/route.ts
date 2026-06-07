@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { PAYSTACK_BASE_URL } from "@/lib/paystack";
 import { formatGHS } from "@/lib/currency";
+import { requireEventOwner } from "@/lib/auth/guards";
 
 type RouteParams = { params: Promise<{ id: string }> };
 type Action = "publish" | "go_live" | "end" | "payout";
@@ -22,12 +23,9 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   const { id } = await params;
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
-  }
+  const guard = await requireEventOwner(supabase, id);
+  if (guard instanceof Response) return guard;
+  const { user, event } = guard;
 
   const body = await req.json().catch(() => ({}));
   const action = body?.action;
@@ -36,17 +34,6 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   }
 
   const service = createServiceClient();
-
-  const { data: event, error: eventErr } = await service
-    .from("events")
-    .select("*")
-    .eq("id", id)
-    .eq("artist_id", user.id)
-    .single();
-
-  if (eventErr || !event) {
-    return NextResponse.json({ error: "Event not found" }, { status: 404 });
-  }
 
   if (action === "publish") {
     if (event.status !== "draft") {

@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { PAYSTACK_BASE_URL } from "@/lib/paystack";
+import { requireArtist } from "@/lib/auth/guards";
 import type { Database } from "@/types/database";
 
 type Body = {
@@ -24,12 +25,9 @@ function isMobileMoneyCode(code: string): boolean {
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
-  }
+  const guard = await requireArtist(supabase);
+  if (guard instanceof Response) return guard;
+  const { user } = guard;
 
   const body = (await req.json()) as Body;
   const service = createServiceClient();
