@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { PAYSTACK_BASE_URL } from "@/lib/paystack";
 
 // POST /api/paystack/initiate — creates a pending ticket and returns the
 // Paystack hosted-checkout URL for the fan to complete payment.
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
 
   const paystackRes = await fetch(
-    "https://api.paystack.co/transaction/initialize",
+    `${PAYSTACK_BASE_URL}/transaction/initialize`,
     {
       method: "POST",
       headers: {
