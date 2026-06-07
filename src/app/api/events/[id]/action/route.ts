@@ -53,15 +53,42 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
         { status: 400 },
       );
     }
+    // Cheap, specific guard before talking to Mux. If the env vars
+    // weren't picked up by this deployment, say that directly instead
+    // of letting the SDK throw a generic "Authorization headers are
+    // missing" wrapper.
+    if (!process.env.MUX_TOKEN_ID || !process.env.MUX_TOKEN_SECRET) {
+      console.error(
+        "[provision_mux] missing env:",
+        "MUX_TOKEN_ID=", !!process.env.MUX_TOKEN_ID,
+        "MUX_TOKEN_SECRET=", !!process.env.MUX_TOKEN_SECRET,
+      );
+      return NextResponse.json(
+        {
+          error:
+            "Server doesn't see MUX_TOKEN_ID / MUX_TOKEN_SECRET. The env vars are set on the wrong Vercel environment (Production vs Preview vs Development), or the deploy that ran doesn't have them. Tick Production on both vars and Redeploy from Deployments → ⋯ → Redeploy.",
+        },
+        { status: 502 },
+      );
+    }
+
     let muxData;
     try {
       muxData = await createMuxLiveStream();
     } catch (err) {
+      // Surface the actual Mux SDK error message so the artist (or
+      // whoever is debugging) can see whether it's "Unauthorized",
+      // "Invalid environment", malformed token, etc.
+      const muxMsg =
+        err instanceof Error
+          ? err.message
+          : typeof err === "string"
+            ? err
+            : "Unknown error";
       console.error("[provision_mux] Mux failed:", err);
       return NextResponse.json(
         {
-          error:
-            "Mux rejected the request. Confirm MUX_TOKEN_ID and MUX_TOKEN_SECRET are set on Vercel for this environment, then redeploy.",
+          error: `Mux SDK error: ${muxMsg}`,
         },
         { status: 502 },
       );
