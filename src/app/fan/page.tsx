@@ -36,7 +36,14 @@ function isUpcoming(ev: NonNullable<EventJoin>) {
   return ev.status === "live" || new Date(ev.scheduled_at) > new Date();
 }
 
-export default async function FanHomePage() {
+export default async function FanHomePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ success?: string }>;
+}) {
+  const params = (await searchParams) ?? {};
+  const justPurchased = params.success === "1";
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -98,6 +105,19 @@ export default async function FanHomePage() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+        {justPurchased && (
+          <div className="bg-protected/10 border border-protected/30 text-protected rounded-card px-4 py-3 flex items-start gap-3">
+            <span className="text-base leading-none mt-0.5">✓</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">Ticket confirmed</p>
+              <p className="text-text-secondary text-xs mt-0.5">
+                Find it in your tickets below — the Watch button opens
+                when the show goes live.
+              </p>
+            </div>
+          </div>
+        )}
+
         {liveTicket && (
           <LiveBanner ticket={liveTicket} />
         )}
