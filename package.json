@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "seed:test": "node --env-file=.env.local scripts/seed-test-data.mjs",
-    "smoke:payout": "node --env-file=.env.local scripts/smoke-payout.mjs"
+    "smoke:payout": "node --env-file=.env.local scripts/smoke-payout.mjs",
+    "smoke:watch-lock": "node --env-file=.env.local scripts/smoke-watch-lock.mjs"
   },
   "dependencies": {
     "@fingerprintjs/fingerprintjs": "^5.2.0",
