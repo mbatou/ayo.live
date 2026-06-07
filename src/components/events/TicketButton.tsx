@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { formatGHS } from "@/lib/currency";
 
 interface Props {
   eventId: string;
@@ -47,7 +48,7 @@ export function TicketButton({ eventId, price }: Props) {
       disabled={loading}
       className="bg-ayo-gold hover:bg-ayo-gold-hover text-stage-black font-semibold rounded-btn px-6 py-3 text-sm transition-colors disabled:opacity-50 whitespace-nowrap"
     >
-      {loading ? "Loading…" : `Get ticket — $${price}`}
+      {loading ? "Loading…" : `Get ticket — ${formatGHS(price)}`}
     </button>
   );
 }

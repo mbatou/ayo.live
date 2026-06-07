@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { formatGHS } from "@/lib/currency";
 
 type EventRow = {
   id: string;
@@ -77,7 +78,7 @@ export default async function DashboardPage() {
   const stats = [
     {
       label: "This month",
-      value: `$${(totalNet * 0.3).toFixed(0)}`,
+      value: formatGHS(totalNet * 0.3),
       sub: "net earnings",
     },
     {
@@ -97,7 +98,7 @@ export default async function DashboardPage() {
     },
     {
       label: "Avg ticket",
-      value: totalTickets > 0 ? `$${(totalGross / totalTickets).toFixed(2)}` : "—",
+      value: totalTickets > 0 ? formatGHS(totalGross / totalTickets) : "—",
       sub: "per ticket",
     },
   ];
@@ -164,7 +165,7 @@ export default async function DashboardPage() {
               {totalTickets.toLocaleString()} tickets sold
             </p>
             <p className="font-display text-2xl font-bold text-ayo-gold">
-              ${totalNet.toFixed(0)}
+              {formatGHS(totalNet)}
             </p>
             <p className="text-[10px] text-text-muted mt-0.5">
               lifetime earnings
@@ -274,7 +275,7 @@ export default async function DashboardPage() {
                       )}
                       <div className="flex items-center justify-between pt-2.5 border-t border-[#1A1A1A]">
                         <span className="text-xs text-ayo-gold font-semibold">
-                          ${net.toFixed(0)} earned
+                          {formatGHS(net)} earned
                         </span>
                         <Link
                           href={`/dashboard/events/${event.id}`}

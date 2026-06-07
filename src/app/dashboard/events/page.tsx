@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { formatGHS } from "@/lib/currency";
 import type { EventStatus } from "@/types";
 
 const STATUS_STYLES: Record<EventStatus, string> = {
@@ -79,7 +80,7 @@ export default async function EventsListPage() {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}{" "}
-                    · ${Number(event.ticket_price).toFixed(2)}
+                    · {formatGHS(Number(event.ticket_price))}
                   </p>
                 </div>
                 <span

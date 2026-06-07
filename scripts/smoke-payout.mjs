@@ -2,21 +2,16 @@
 /**
  * Ayo · Smoke Test 1 — Payout amount correctness
  * --------------------------------------------------------------------------
- * Adapted from the user-supplied template to Ayo's actual schema:
- *   - profiles has no email column (FK to auth.users); we resolve the
- *     artist via auth.users via the service-role admin API.
- *   - events column is `ticket_price`, not `price`. There is no `slug`.
- *   - The payout action reads gross from tickets.amount_paid where
- *     status='confirmed' — we seed exactly TICKETS_CONFIRMED of those.
+ * Ayo is single-currency GHS. Tickets are priced and paid in GHS major
+ * units; payouts go out in GHS pesewas with no FX multiplier anywhere.
+ * This test asserts the exact integer the /api/events/[id]/action
+ * payout endpoint sends to Paystack matches:
  *
- * WHAT THIS PROVES: the exact integer Ayo sends to Paystack on payout
- *                    vs. what it should be (pesewas, in GHS).
+ *     Math.round(TICKET_PRICE_GHS * TICKETS_CONFIRMED * ARTIST_SHARE * 100)
  *
- * EXPECTED RESULT today: ❌ FAIL with ~15× underpay.
- * That's the bug — `Math.round(net * 100)` in /api/events/[id]/action
- * treats `net` (USD) as if it were already pesewas, with no FX. The test
- * stops being correct (and this script stops being useful) once that
- * code path is fixed.
+ * with currency 'GHS'. No FX_USD_TO_GHS, no conversion.
+ *
+ * EXPECTED RESULT today: ✅ PASS with factor ~1.00×.
  *
  * RUN:   npm run smoke:payout
  *
@@ -42,10 +37,10 @@ const ARTIST_PASSWORD = process.env.ARTIST_PASSWORD ?? "AyoTest2026!";
 const AUTH_COOKIE = process.env.AUTH_COOKIE ?? null;
 
 // Economics. Set on purpose — these drive the expected number.
-const TICKET_PRICE_USD = 10;
+// Match TICKET_PRICE_GHS to the seeded hero event's ticket_price.
+const TICKET_PRICE_GHS = 150;
 const TICKETS_CONFIRMED = 1;
 const ARTIST_SHARE = 0.9; // matches `gross * 0.9` in /api/events/[id]/action
-const FX_USD_TO_GHS = 15.0; // <<< put the rate you intend to settle at
 const EXPECTED_CURRENCY = "GHS";
 // ───────────────────────────────────────────────────────────────────────────
 
@@ -210,7 +205,7 @@ async function run() {
       title: "SMOKE — payout test",
       genre: "Highlife",
       scheduled_at: inTenMin,
-      ticket_price: TICKET_PRICE_USD,
+      ticket_price: TICKET_PRICE_GHS,
       status: "ended",
       is_group: false,
     })
@@ -218,13 +213,15 @@ async function run() {
     .single();
   if (eerr) die(`Could not insert test event: ${eerr.message}`);
   createdEventId = ev.id;
-  console.log(`• Created ended event ${createdEventId} @ $${TICKET_PRICE_USD}`);
+  console.log(
+    `• Created ended event ${createdEventId} @ GH₵${TICKET_PRICE_GHS}`,
+  );
 
   // Seed confirmed tickets so the payout has gross revenue to compute.
   const ticketRows = Array.from({ length: TICKETS_CONFIRMED }, () => ({
     event_id: createdEventId,
-    amount_paid: TICKET_PRICE_USD,
-    currency: "USD",
+    amount_paid: TICKET_PRICE_GHS,
+    currency: "GHS",
     status: "confirmed",
   }));
   const { data: tix, error: terr } = await admin
@@ -273,14 +270,14 @@ async function run() {
 
   const sentAmount = Number(captured.amount);
   const sentCurrency = captured.currency;
-  const grossUsd = TICKET_PRICE_USD * TICKETS_CONFIRMED;
-  const artistUsd = grossUsd * ARTIST_SHARE;
-  const expected = Math.round(artistUsd * FX_USD_TO_GHS * 100);
+  const grossGhs = TICKET_PRICE_GHS * TICKETS_CONFIRMED;
+  const artistGhs = grossGhs * ARTIST_SHARE;
+  const expected = Math.round(artistGhs * 100);
 
   console.log(`sent.amount     : ${sentAmount}`);
   console.log(`sent.currency   : ${sentCurrency}`);
   console.log(
-    `expected.amount : ${expected}  (pesewas = $${artistUsd} × ${FX_USD_TO_GHS} × 100)`,
+    `expected.amount : ${expected}  (pesewas = GH₵${artistGhs} × 100)`,
   );
   console.log(
     `underpay factor : ${(expected / (sentAmount || 1)).toFixed(2)}×`,
@@ -303,7 +300,8 @@ async function run() {
     if (!amountOk) {
       console.log(
         `     amount off by ${(expected / (sentAmount || 1)).toFixed(2)}× — ` +
-          `likely missing FX and/or ×100 subunit.`,
+          `the ×100 subunit step is missing, or amount_paid is being read ` +
+          `from the wrong column. Ayo is GHS-only; no FX should appear.`,
       );
     }
     console.log("");

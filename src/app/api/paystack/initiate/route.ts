@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       event_id,
       fan_id: user.id,
       amount_paid: event.ticket_price,
-      currency: "USD",
+      currency: "GHS",
       status: "pending",
     })
     .select()
@@ -81,9 +81,9 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         email: user.email,
-        // Paystack expects the sub-unit (kobo / pesewas).
+        // Ayo is GHS-only. ticket_price is GHS major units (e.g. 150
+        // means GH₵150.00); *100 yields pesewas. No FX anywhere.
         amount: Math.round(event.ticket_price * 100),
-        // Sprint-3 placeholder: charge ticket_price in GHS without FX.
         currency: "GHS",
         reference: ticket.id,
         metadata: {

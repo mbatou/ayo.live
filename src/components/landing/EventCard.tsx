@@ -2,6 +2,7 @@ import Link from "next/link";
 import { LiveBadge } from "@/components/ui/LiveBadge";
 import { GroupBadge } from "@/components/ui/GroupBadge";
 import { GENRE_TINTS, type PlaceholderEvent } from "@/lib/placeholder-data";
+import { formatGHS } from "@/lib/currency";
 
 type Props = { event: PlaceholderEvent };
 
@@ -49,7 +50,7 @@ export function EventCard({ event }: Props) {
             {event.date} · {event.time} · {event.genre}
           </p>
           <span className="font-display font-bold text-ayo-gold text-base shrink-0">
-            ${event.price}
+            {formatGHS(event.price)}
           </span>
         </div>
 
